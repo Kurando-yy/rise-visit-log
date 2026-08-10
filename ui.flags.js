@@ -15,7 +15,12 @@
     SKIP_SCREEN4_WHEN_SINGLE_ITEM: true,
 
     // 確定後、自動的に画面1へ戻るまでの待機時間（ミリ秒）
-    AUTO_RETURN_MS: 3000
+    AUTO_RETURN_MS: 3000,
+
+    // ★送信先タブの切替。既定 "test"（試験タブ）。
+    //   本番運用へ移す時だけ "live" に変える。設定し忘れで本番を汚さないよう
+    //   既定を test にしてある。変更したら index.html の ?v= も上げること。
+    SUBMIT_MODE: "test"
   };
 
   if (typeof module === "object" && module.exports) {

@@ -1,0 +1,195 @@
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 44px 48px 40px;
+    width: 1320px;
+  }
+  h1 { font-size: 30px; letter-spacing: .02em; }
+  .sub { font-size: 15px; color: #6b6b6b; margin-top: 8px; }
+  .rule { height: 3px; background: #1f3a5f; margin: 18px 0 30px; }
+
+  .wrap { display: flex; gap: 40px; align-items: flex-start; }
+  .flow { width: 700px; flex: none; }
+
+  .node {
+    border: 2.5px solid #1f3a5f;
+    border-radius: 12px;
+    padding: 14px 18px 15px;
+    background: #f7fafd;
+  }
+  .node .no { font-size: 13px; color: #1f3a5f; font-weight: 700; letter-spacing: .08em; }
+  .node .q  { font-size: 25px; font-weight: 700; margin-top: 3px; }
+  .btns { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 9px; }
+  .btn {
+    border: 2px solid #2f6db5; border-radius: 8px; background: #fff;
+    padding: 7px 16px; font-size: 19px; font-weight: 600; color: #14406f;
+  }
+  .btn.dyn { border-style: dashed; color: #4a4a4a; border-color: #9aa7b4; font-weight: 500; }
+
+  .arrow { text-align: center; color: #1f3a5f; font-size: 26px; line-height: 1; margin: 7px 0; }
+  .arrow .lbl { display: block; font-size: 14px; color: #6b6b6b; margin-bottom: 2px; }
+
+  .cond {
+    border-left: 5px solid #e0a800; background: #fff8e1;
+    padding: 9px 14px; font-size: 15px; border-radius: 0 8px 8px 0; margin: 7px 0;
+  }
+  .node.opt { border-style: dashed; background: #fffdf4; border-color: #c8a13a; }
+  .node.pay { background: #eef7ee; border-color: #2f7d32; }
+  .node.pay .q { color: #1b5e20; }
+  .price { font-size: 40px; font-weight: 800; color: #1b5e20; margin-top: 8px; }
+
+  .loop {
+    margin-top: 12px; text-align: center; font-size: 15px; color: #1f3a5f;
+    border: 2px dashed #1f3a5f; border-radius: 999px; padding: 8px 14px; background: #f2f6fb;
+  }
+
+  .side { flex: 1; }
+  .card { border: 2px solid #d5dde6; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+  .card h2 { font-size: 18px; color: #1f3a5f; margin-bottom: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; }
+  th, td { border: 1px solid #d5dde6; padding: 8px 10px; text-align: center; }
+  th { background: #eef2f7; font-weight: 700; }
+  td.h { background: #f7fafd; font-weight: 700; }
+  .hi { background: #fff8e1; font-weight: 800; }
+  ul { margin-left: 18px; font-size: 15px; line-height: 1.85; }
+  .k { font-weight: 700; }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+    background: #1f3a5f; color: #fff; vertical-align: middle; margin-left: 8px;
+  }
+  .foot { margin-top: 22px; font-size: 13px; color: #8a8a8a; }
+</style>
+
+<h1>RISE南関町　来店記録タブレット　導線マップ</h1>
+<div class="sub">お客様がご自身でタップする画面／戻るボタンなし・文字入力なし　　2026-08-10 時点（ロング増し加算方式化 反映済）</div>
+<div class="rule"></div>
+
+<div class="wrap">
+  <div class="flow">
+
+    <div class="node">
+      <div class="no">画面 1</div>
+      <div class="q">ご来店は？</div>
+      <div class="btns"><span class="btn">初めて</span><span class="btn">2回目以降</span></div>
+    </div>
+    <div class="arrow">▼</div>
+
+    <div class="node">
+      <div class="no">画面 2</div>
+      <div class="q">性別</div>
+      <div class="btns"><span class="btn">男性</span><span class="btn">女性</span></div>
+    </div>
+    <div class="arrow">▼</div>
+
+    <div class="node">
+      <div class="no">画面 3</div>
+      <div class="q">本日のご希望</div>
+      <div class="btns"><span class="btn">カット</span><span class="btn">カラー</span><span class="btn">パーマ</span></div>
+    </div>
+    <div class="arrow"><span class="lbl">性別 × 区分 で出す項目を絞る</span>▼</div>
+
+    <div class="node">
+      <div class="no">画面 4</div>
+      <div class="q">詳しく</div>
+      <div class="btns">
+        <span class="btn dyn">該当メニュー</span><span class="btn dyn">…</span><span class="btn dyn">最多 5 個</span>
+      </div>
+    </div>
+
+    <div class="cond">▲ <span class="k">男性 × パーマ</span> は該当 1 個のみ　→　<span class="k">画面 4 を飛ばして画面 5 へ</span></div>
+    <div class="arrow">▼</div>
+
+    <div class="node opt">
+      <div class="no">画面 4b　（条件つき）</div>
+      <div class="q">仕上がりは？</div>
+      <div class="btns"><span class="btn">ふつう</span><span class="btn">丸刈り</span></div>
+    </div>
+    <div class="cond">▲ <span class="k">カットとシャンプー／カットと顔剃り／カットとシャンプーと顔剃り</span> を選んだ時だけ表示（男性CUTのみ）</div>
+    <div class="arrow">▼</div>
+
+    <div class="node opt">
+      <div class="no">画面 4c　（条件つき・新設 8/10）</div>
+      <div class="q">髪の長さは？</div>
+      <div class="btns"><span class="btn">ふつう</span><span class="btn">長い（＋600円）</span></div>
+    </div>
+    <div class="cond">▲ <span class="k">女性カラー全4項目／女性パーマ全2項目</span>（フェイスラインパーマ・パーマ）を選んだ時だけ表示。<span class="k">画面4bとは同時に出ない</span>（4b=男性CUTのみ／4c=女性COLOR・PERMAのみ）</div>
+    <div class="arrow">▼</div>
+
+    <div class="node pay">
+      <div class="no">画面 5</div>
+      <div class="q">お会計</div>
+      <div class="price">1,300 円です</div>
+      <div class="btns"><span class="btn">これで確定</span></div>
+    </div>
+
+    <div class="loop">確定から 3 秒後 → 自動で 画面 1 へ戻る（次のお客様へ）</div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>画面 4 に並ぶ項目数</h2>
+      <table>
+        <tr><th></th><th>カット</th><th>カラー</th><th>パーマ</th></tr>
+        <tr><td class="h">男性</td><td>5</td><td>3</td><td class="hi">1</td></tr>
+        <tr><td class="h">女性</td><td>4</td><td>4</td><td>2</td></tr>
+      </table>
+      <ul>
+        <li>どの画面も <span class="k">最大 5 個</span>＝大きなボタンのまま収まる</li>
+        <li>登録は <span class="k">全 19 項目</span>（男性 9・女性 10）</li>
+        <li><span class="k">8/10改修</span>: 「ロング増し」「パーマロング増し」の単独メニュー2項目を削除し、
+          女性COLOR/PERMAの加算方式（画面4c）へ統合したため 21→19 項目に変更</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>タップ回数</h2>
+      <table>
+        <tr><th>経路</th><th>タップ数</th></tr>
+        <tr><td>男性 × パーマ<span class="tag">最短</span></td><td class="hi">3</td></tr>
+        <tr><td>通常</td><td>4</td></tr>
+        <tr><td>丸刈りを選んだ時</td><td>5</td></tr>
+        <tr><td>女性 × カラー／パーマ<span class="tag">最長</span></td><td class="hi">5</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>この画面で記録されるもの</h2>
+      <ul>
+        <li>日時（タップした時刻を自動）</li>
+        <li>初めて／2回目以降</li>
+        <li>性別</li>
+        <li>メニュー名・丸刈りの有無</li>
+        <li>金額</li>
+      </ul>
+      <ul style="margin-top:8px">
+        <li class="k">氏名・文字入力は一切なし</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>決まったこと<span class="tag">8/10</span></h2>
+      <ul>
+        <li>店頭の「<span class="k">調髪</span>」＝ カット＋シャンプー＋顔剃り</li>
+        <li>店頭の「<span class="k">子供調髪</span>」＝ 子供カット＋シャンプー（<span class="k">顔剃りは含まない</span>）</li>
+        <li>画面には上の「かみ砕いた名前」を出す。店頭メニュー表の名称は内部に保持</li>
+        <li>「ロング増し」「パーマロング増し」は<span class="k">単独メニューではなく加算</span>。
+          女性カラー全4項目・女性パーマ全2項目に付く画面4c（髪の長さは？）で
+          「長い（＋600円）」を選んだ時だけ加算される（カットには付かない）</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>まだ決まっていないこと</h2>
+      <ul>
+        <li>押し間違えた時にどうするか（今は戻るボタン無し）</li>
+        <li>「〜」付き 2 項目は下限で記録中</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="foot">点線のボタン＝選択内容によって中身が変わる箇所　／　黄色の枠＝条件つきで出る画面</div>

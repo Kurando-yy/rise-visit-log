@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>RISE南関町 来店記録</title>
+<link rel="stylesheet" href="style.css?v=20260810b">
+</head>
+<body>
+
+<!-- 画面1: ご来店は？ -->
+<section id="screen-1" class="screen">
+  <div class="screen-title">ご来店は？</div>
+  <div class="btn-grid">
+    <button id="btn-first" type="button" class="tap-btn">初めて</button>
+    <button id="btn-repeat" type="button" class="tap-btn">2回目以降</button>
+  </div>
+</section>
+
+<!-- 画面2: 性別 -->
+<section id="screen-2" class="screen">
+  <div class="screen-title">性別</div>
+  <div class="btn-grid">
+    <button id="btn-men" type="button" class="tap-btn">男性</button>
+    <button id="btn-woman" type="button" class="tap-btn">女性</button>
+  </div>
+</section>
+
+<!-- 画面3: ご希望 -->
+<section id="screen-3" class="screen">
+  <div class="screen-title">本日のご希望</div>
+  <div class="btn-grid">
+    <button id="btn-section-cut" type="button" class="tap-btn">カット</button>
+    <button id="btn-section-color" type="button" class="tap-btn">カラー</button>
+    <button id="btn-section-perma" type="button" class="tap-btn">パーマ</button>
+  </div>
+</section>
+
+<!-- 画面4: 詳しく（性別×区分で絞り込んだ一覧。JSで動的に生成） -->
+<section id="screen-4" class="screen">
+  <div class="screen-title">詳しく</div>
+  <div id="screen-4-buttons" class="btn-grid"></div>
+</section>
+
+<!-- 画面4b: 丸刈り該当時のみ -->
+<section id="screen-4b" class="screen">
+  <div class="screen-title">仕上がりは？</div>
+  <div class="btn-grid">
+    <button id="btn-kari-normal" type="button" class="tap-btn">ふつう</button>
+    <button id="btn-kari-kari" type="button" class="tap-btn">丸刈り</button>
+  </div>
+</section>
+
+<!-- 画面4c: ロング加算(hasLong)該当時のみ。画面4bとは互いに排他だが、
+     両方立った場合でも壊れないよう 4b→4c の順で表示する（app.js参照） -->
+<section id="screen-4c" class="screen">
+  <div class="screen-title">髪の長さは？</div>
+  <div class="btn-grid">
+    <button id="btn-long-normal" type="button" class="tap-btn">ふつう</button>
+    <button id="btn-long-long" type="button" class="tap-btn">長い（＋600円）</button>
+  </div>
+</section>
+
+<!-- 画面5: 確定 -->
+<section id="screen-5" class="screen">
+  <div class="screen-title">お会計</div>
+  <div id="screen-5-price" class="price-display">0 円です</div>
+  <button id="btn-confirm" type="button" class="tap-btn confirm-btn">これで確定</button>
+  <div class="hint">確定後、自動的に最初の画面へ戻ります</div>
+</section>
+
+<script src="menu.config.js?v=20260810b"></script>
+<script src="menu.logic.js?v=20260810b"></script>
+<script src="ui.flags.js?v=20260810b"></script>
+<script src="submit.js?v=20260810b"></script>
+<script src="app.js?v=20260810b"></script>
+</body>
+</html>

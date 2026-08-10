@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css"></head><body>
+<section class="screen" style="display:flex">
+  <div class="screen-title">詳しく</div>
+  <div id="g" class="btn-grid"></div>
+</section>
+<script src="menu.config.js"></script>
+<script>
+var items = RISE_MENU_CONFIG.genders.MEN.sections.CUT;
+var g = document.getElementById("g");
+items.forEach(function(it){
+  var b=document.createElement("button");
+  b.type="button"; b.className="tap-btn"; b.textContent=it.name; g.appendChild(b);
+});
+window.addEventListener("load",function(){
+  var over=[],r0=document.documentElement.getBoundingClientRect();
+  document.querySelectorAll(".tap-btn").forEach(function(b){
+    var r=b.getBoundingClientRect();
+    var clipped = b.scrollWidth > b.clientWidth+1 || b.scrollHeight > b.clientHeight+1;
+    if(r.right>window.innerWidth+1||r.left<-1||clipped) over.push(b.textContent+" w="+Math.round(r.width)+" h="+Math.round(r.height)+" clipped="+clipped);
+  });
+  var d=document.createElement("div");
+  d.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font:14px monospace;padding:6px;z-index:99";
+  d.textContent = over.length? ("NG: "+over.join(" | ")) : "OK: はみ出し・文字切れ なし";
+  document.body.appendChild(d);
+});
+</script></body></html>

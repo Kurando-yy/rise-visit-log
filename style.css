@@ -1,0 +1,114 @@
+/*
+ * RISE南関町 来店記録タブレット — スタイル
+ *
+ * ★ボタン最小タップ寸法（根拠）
+ * Apple Human Interface Guidelines の推奨最小タップ領域は 44x44pt。
+ * 本画面は「高齢のお客様が自分でタップする」（司令要件）ため、その目安の
+ * 約3倍以上を確保する: 最小 高さ140px × 幅220px（--tap-min-height / --tap-min-width）。
+ * 画面4（最大5択）でも auto-fit グリッドでこの最小値を割らずに
+ * 1024x768 / 820x1180 の両方に収まることを確認済み（検証結果は報告参照）。
+ */
+
+:root {
+  --tap-min-height: 140px;
+  --tap-min-width: 220px;
+  --gap: 24px;
+  --color-bg: #fdfaf5;
+  --color-primary: #2f6f4f;
+  --color-primary-dark: #1f4d36;
+  --color-text: #222;
+  --color-border: #cfcfcf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "YuGothic", sans-serif;
+  /* iPadでのピンチズーム・ダブルタップズームによる誤操作を避ける */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  text-align: center;
+}
+
+.screen.active {
+  display: flex;
+}
+
+.screen-title {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  margin-bottom: var(--gap);
+  font-weight: 700;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--tap-min-width), 1fr));
+  gap: var(--gap);
+  width: 100%;
+  max-width: 900px;
+}
+
+.tap-btn {
+  min-height: var(--tap-min-height);
+  min-width: var(--tap-min-width);
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 16px;
+  padding: 16px 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--color-primary-dark);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+
+.tap-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--color-primary-dark);
+}
+
+.tap-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menu-btn {
+  background: #3a7d5c;
+}
+
+.price-display {
+  font-size: clamp(3rem, 10vw, 6rem);
+  font-weight: 900;
+  margin: var(--gap) 0 calc(var(--gap) * 1.5) 0;
+  color: var(--color-primary-dark);
+}
+
+.confirm-btn {
+  min-height: calc(var(--tap-min-height) * 1.2);
+  min-width: 320px;
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+}
+
+.hint {
+  margin-top: var(--gap);
+  color: #777;
+  font-size: 1rem;
+}

@@ -17,10 +17,11 @@
     // 確定後、自動的に画面1へ戻るまでの待機時間（ミリ秒）
     AUTO_RETURN_MS: 3000,
 
-    // ★送信先タブの切替。既定 "test"（試験タブ）。
-    //   本番運用へ移す時だけ "live" に変える。設定し忘れで本番を汚さないよう
-    //   既定を test にしてある。変更したら index.html の ?v= も上げること。
-    SUBMIT_MODE: "test"
+    // ★送信先タブの切替。
+    //   "test" → 試験タブ ／ "live" → 本番タブ
+    //   2026-08-10 13:2x 端末→受け口→シートの疎通確認が通ったため live へ切替。
+    //   戻す時は "test" に変え、index.html の ?v= も必ず上げること。
+    SUBMIT_MODE: "live"
   };
 
   if (typeof module === "object" && module.exports) {

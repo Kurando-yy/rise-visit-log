@@ -1,5 +1,5 @@
 /*
- * RISE南関町 来店記録タブレット — 送信部（送信先はダミー定数のまま）
+ * RISE南関町 来店記録タブレット — 送信部
  *
  * ★2026-08-10 デプロイ済みの受け口URLへ差し替え済み（司令 msg 1536223966996336720）。
  *   書き込みには端末トークンが要るため、トークン未登録の端末から送っても受け口が拒否する。
@@ -9,14 +9,13 @@
  * 次の送信タイミング（次のお客様の確定時、またはページ読み込み時）にまとめて再試行する。
  */
 (function (root) {
-  // ★未デプロイ・プレースホルダ。".invalid" は RFC 2606 で「実在しないことが保証されたドメイン」
-  //   として予約されているため、このURLに対する fetch は実サーバーへ到達せず必ず失敗する
-  //   （＝禁止事項「外部への送信を伴う実行をしない」を実装レベルで担保する）。
-  //   デプロイ時に権限保持者が GAS の実際の Web アプリURL（script.google.com/macros/s/xxx/exec）へ差し替える。
+  // 受け口（GAS ウェブアプリ）。書き込みには端末トークンが要る。
   var SUBMIT_URL = "https://script.google.com/macros/s/AKfycbyVg9Fn3tbOJwcZKMnzV817dbNMpNmRXDzjvP5XqlGEczAaqBI8EXkiC9SfioJ-qIqB/exec";
   var QUEUE_KEY = "rise_visit_log_pending_queue_v1";
   var TOKEN_KEY = "rise_visit_log_token_v1";
   var DEVICE_KEY = "rise_visit_log_device_v1";
+  var REJECTED_KEY = "rise_visit_log_rejected_v1";
+  var MAX_RETRIES = 20; // これを超えたら再送を打ち切り、退避へ回す
 
   /*
    * ── 端末の登録（トークン） ─────────────────────────────────────────
@@ -121,29 +120,62 @@
    *   OPTIONS を処理しないので、そこで失敗し **POSTが1度も届かない**。
    *   本文はJSON文字列のままで、受け口は e.postData.contents を JSON.parse する。
    */
+  /*
+   * ★受け口は「拒否」の時も HTTP 200 を返し、本文に {"ok":false,"msg":"理由"} を入れる。
+   *   HTTPの成否だけを見ると、弾かれた記録を「送れた」と誤判定して**静かに失う**。
+   *   2026-08-10 の実測で、応答は読める（type:"cors"）ことを確認済み。
+   *
+   * 判定は3通りに分ける:
+   *   sent      … 受理された。キューから外す
+   *   rejected  … 受け口が拒否。再送しても直らないので、別枠に退避して残す
+   *   retry     … 通信できなかった／応答を読めない。キューに積んで後で再試行
+   */
+  function classifyResponse(res) {
+    if (res && res.type === "opaque") return { kind: "retry", reason: "opaque" };
+    if (!res.ok) return { kind: "retry", reason: "http_" + res.status };
+    return res.text().then(function (t) {
+      var body = null;
+      try { body = JSON.parse(t); } catch (e) { /* JSONで無ければ判断できない */ }
+      if (!body || typeof body.ok === "undefined") {
+        return { kind: "retry", reason: "unreadable_body" };
+      }
+      if (body.ok) return { kind: "sent" };
+      return { kind: "rejected", reason: String(body.msg || "rejected") };
+    });
+  }
+
   function sendOne(record) {
     return fetch(SUBMIT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify(record)
-    }).then(function (res) {
-      // GAS は googleusercontent へリダイレクトするため、応答が読めない
-      // （opaque）ことがある。読めない時は成否を判断できないので「送れた」扱いにする。
-      // ★受け口が record_id で重複を弾くので、取りこぼしより二重送信の方が安全。
-      if (res && res.type === "opaque") return res;
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res;
-    });
+    }).then(classifyResponse)
+      .catch(function (e) {
+        return { kind: "retry", reason: "network:" + (e && e.message ? e.message : "error") };
+      });
+  }
+
+  /** 受け口に拒否された記録を退避する（消さずに残し、後から拾えるようにする） */
+  function keepRejected(record, reason) {
+    try {
+      var raw = root.localStorage ? root.localStorage.getItem(REJECTED_KEY) : null;
+      var list = raw ? JSON.parse(raw) : [];
+      list.push({ reason: reason, at: new Date().toISOString(), record: record });
+      if (list.length > 200) list = list.slice(-200); // 端末の容量を圧迫しない
+      if (root.localStorage) root.localStorage.setItem(REJECTED_KEY, JSON.stringify(list));
+    } catch (e) { /* 保存に失敗しても画面は止めない */ }
   }
 
   /**
    * 1件送信する。失敗した場合はキューへ積んで後で再送する（例外は投げない＝画面は止めない）。
    */
   function submitRecord(record) {
-    return sendOne(record)
-      .catch(function () {
-        enqueue(record);
-      });
+    return sendOne(record).then(function (r) {
+      if (r.kind === "sent") return r;
+      if (r.kind === "rejected") { keepRejected(record, r.reason); return r; }
+      enqueue(record); // retry
+      return r;
+    });
   }
 
   /**
@@ -154,18 +186,20 @@
     if (queue.length === 0) return Promise.resolve({ attempted: 0, succeeded: 0 });
     var remaining = [];
     var succeeded = 0;
+    var rejected = 0;
     var attempts = queue.map(function (record) {
-      return sendOne(record)
-        .then(function () {
-          succeeded++;
-        })
-        .catch(function () {
-          remaining.push(record);
-        });
+      return sendOne(record).then(function (r) {
+        if (r.kind === "sent") { succeeded++; return; }
+        if (r.kind === "rejected") { keepRejected(record, r.reason); rejected++; return; }
+        // ★再送を無限に繰り返さない。上限を超えたら退避して打ち切る
+        record._tries = (record._tries || 0) + 1;
+        if (record._tries >= MAX_RETRIES) { keepRejected(record, "gave_up:" + r.reason); rejected++; return; }
+        remaining.push(record);
+      });
     });
     return Promise.all(attempts).then(function () {
       saveQueue(remaining);
-      return { attempted: queue.length, succeeded: succeeded };
+      return { attempted: queue.length, succeeded: succeeded, rejected: rejected };
     });
   }
 
@@ -252,7 +286,11 @@
     retryPending: retryPending,
     buildRecord: buildRecord,
     toJstIsoString: toJstIsoString,
-    _loadQueue: loadQueue // テスト用
+    _loadQueue: loadQueue, // テスト用
+    listRejected: function () {
+      try { return JSON.parse((root.localStorage && root.localStorage.getItem(REJECTED_KEY)) || "[]"); }
+      catch (e) { return []; }
+    }
   };
 
   if (typeof module === "object" && module.exports) {

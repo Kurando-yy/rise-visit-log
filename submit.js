@@ -104,13 +104,34 @@
     );
   }
 
+  /**
+   * 1レコードに一意のIDを振る。
+   * ★再送キューに積まれた後も同じIDのまま送り直されるため、受け口側は
+   *   「同じ record_id が既にあればスキップ」で二重計上を防げる。
+   *   ここで毎回振り直すと、通信が不安定な日に件数が水増しされる。
+   */
+  function newRecordId() {
+    try {
+      if (root.crypto && typeof root.crypto.randomUUID === "function") {
+        return root.crypto.randomUUID();
+      }
+    } catch (e) {
+      /* 古い端末では下のフォールバックへ */
+    }
+    // フォールバック: 時刻 + 乱数。端末1台・1秒に1件未満の運用では十分に衝突しない。
+    return "r-" + Date.now().toString(36) + "-" +
+      Math.floor(Math.random() * 1e12).toString(36);
+  }
+
   function buildRecord(state) {
     var now = new Date();
     return {
+      record_id: newRecordId(), // ★受け口側の重複排除キー
       timestamp_iso: toJstIsoString(now), // JST固定（端末のタイムゾーン設定に非依存）
       visit_type: state.visitType, // "first" | "repeat"
       gender: state.gender, // "MEN" | "WOMAN"
       section: state.section, // "CUT" | "COLOR" | "PERMA"
+      menu_id: state.item.id, // ★受け口側が料金表と突き合わせるキー
       menu_name: state.item.name,
       kari_applied: !!state.kariApplied, // 丸刈り選択の有無
       long_applied: !!state.longApplied, // ロング加算（旧「ロング増し」「パーマロング増し」相当）選択の有無

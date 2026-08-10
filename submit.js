@@ -1,9 +1,8 @@
 /*
  * RISE南関町 来店記録タブレット — 送信部（送信先はダミー定数のまま）
  *
- * ★禁止事項遵守: ここから実際の外部送信は行わない。SUBMIT_URL は未デプロイの
- *   プレースホルダであり、fetch は実運用時に権限保持者が正しいURLへ差し替えるまで
- *   動作確認以外の目的で呼び出さないこと。
+ * ★2026-08-10 デプロイ済みの受け口URLへ差し替え済み（司令 msg 1536223966996336720）。
+ *   書き込みには端末トークンが要るため、トークン未登録の端末から送っても受け口が拒否する。
  *
  * 実装するのは「送信失敗時の再送のみ」（計画書 §通信の扱い）。
  * 本格的なオフライン同期は作らない。localStorage に未送信キューを1つ持ち、
@@ -14,7 +13,7 @@
   //   として予約されているため、このURLに対する fetch は実サーバーへ到達せず必ず失敗する
   //   （＝禁止事項「外部への送信を伴う実行をしない」を実装レベルで担保する）。
   //   デプロイ時に権限保持者が GAS の実際の Web アプリURL（script.google.com/macros/s/xxx/exec）へ差し替える。
-  var SUBMIT_URL = "https://SET-GAS-DEPLOYMENT-URL-HERE.invalid/exec";
+  var SUBMIT_URL = "https://script.google.com/macros/s/AKfycbyVg9Fn3tbOJwcZKMnzV817dbNMpNmRXDzjvP5XqlGEczAaqBI8EXkiC9SfioJ-qIqB/exec";
   var QUEUE_KEY = "rise_visit_log_pending_queue_v1";
   var TOKEN_KEY = "rise_visit_log_token_v1";
   var DEVICE_KEY = "rise_visit_log_device_v1";

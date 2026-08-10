@@ -115,12 +115,23 @@
     saveQueue(queue);
   }
 
+  /*
+   * ★Content-Type は "text/plain" にすること（"application/json" にしない）。
+   *   application/json はブラウザから見て「単純リクエスト」ではないため、
+   *   本番のPOSTの前に OPTIONS（プリフライト）が飛ぶ。GAS のウェブアプリは
+   *   OPTIONS を処理しないので、そこで失敗し **POSTが1度も届かない**。
+   *   本文はJSON文字列のままで、受け口は e.postData.contents を JSON.parse する。
+   */
   function sendOne(record) {
     return fetch(SUBMIT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify(record)
     }).then(function (res) {
+      // GAS は googleusercontent へリダイレクトするため、応答が読めない
+      // （opaque）ことがある。読めない時は成否を判断できないので「送れた」扱いにする。
+      // ★受け口が record_id で重複を弾くので、取りこぼしより二重送信の方が安全。
+      if (res && res.type === "opaque") return res;
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res;
     });

@@ -65,7 +65,7 @@ console.log(JSON.stringify(screen4CountTable, null, 2));
 
 var expectedTable = {
   MEN: { CUT: 5, COLOR: 3, PERMA: 1 },
-  WOMAN: { CUT: 4, COLOR: 4, PERMA: 2 }
+  WOMAN: { CUT: 5, COLOR: 4, PERMA: 2 }
 };
 
 var tableMismatch = [];
@@ -87,8 +87,8 @@ console.log("到達不能(unreachable): " + (total - rows.length) + " 件");
 
 var ok = true;
 
-if (total !== 19) {
-  console.error("NG: 総項目数が19件ではありません（" + total + "件）");
+if (total !== 20) {
+  console.error("NG: 総項目数が20件ではありません（" + total + "件）");
   ok = false;
 }
 
@@ -189,7 +189,7 @@ if (cutSectionHasLong.length > 0) {
 
 console.log("");
 if (ok) {
-  console.log("OK: 19/19 到達可能。到達不能0件。id重複0件。計画書の件数表と一致。丸刈り対象3件・下限フラグ2件も想定どおり。ロング増し/パーマロング増しの単独メニューは削除済み。hasLong対象6件は画面4c経由で+600円。");
+  console.log("OK: " + total + "/" + total + " 到達可能。到達不能0件。id重複0件。計画書の件数表と一致。丸刈り対象3件・下限フラグ2件も想定どおり。ロング増し/パーマロング増しの単独メニューは削除済み。hasLong対象6件は画面4c経由で+600円。");
   process.exit(0);
 } else {
   console.log("FAIL: 上記 NG を確認してください。");

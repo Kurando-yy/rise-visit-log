@@ -48,6 +48,12 @@
  *   カットシェービング → カットと顔剃り(1,950 / 丸刈り1,700)
  *   調髪             → カットとシャンプーと顔剃り(2,200 / 丸刈り1,950)
  *
+ * ★2026-08-11 女性「カットとシャンプー」1,950円を追加（司令確認 msg 1536534528359800882）。
+ *   屋外看板に載っているのにタブレットで押せず、別々に押すと 1300+1300=2600円 で
+ *   看板の1,950円と合わない状態だった。店内メニュー表には無い項目（掲示物が2種類あり内容が違う）。
+ *   ★女性に「カット＋顔剃り」のセットは無い（司令「女性は髭が生えないのが基本」）。
+ *   お顔剃り2,050円は単体メニューとして別に存在する。
+ *
  * ロング加算(hasLong)を持つのは WOMAN'S COLOR 全4項目・WOMAN'S PERMA 全2項目のみ:
  *   白髪ぼかし／白髪染め／おしゃれ染め／マニキュア（女性COLOR）
  *   フェイスラインパーマ／パーマ（女性PERMA）
@@ -86,6 +92,7 @@
         sections: {
           CUT: [
             { id: "woman-cut-cut", name: "カット", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-cutshampoo", name: "カットとシャンプー", price: 1950, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "woman-cut-shampoo", name: "シャンプー", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "woman-cut-maegami", name: "前髪カット", price: 600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "woman-cut-kaosori", name: "お顔剃り", price: 2050, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }

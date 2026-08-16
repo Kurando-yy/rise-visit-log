@@ -304,3 +304,10 @@ html, body {
   color: #a3341f;
   text-align: center;
 }
+
+/* 丸刈り・ロング加算の注記。金額が料金表と違って見える理由を、その行に添える */
+.list-note {
+  margin-left: 6px;
+  font-size: 0.8em;
+  color: #a3341f;
+}

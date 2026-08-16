@@ -183,26 +183,35 @@
       return;
     }
 
-    var total = 0;
+    var sum = 0;
     var html = '<table class="list-table"><thead><tr>' +
       "<th>入力時間</th><th>来店</th><th>性別</th><th>メニュー</th><th>金額</th>" +
       "</tr></thead><tbody>";
     rows.forEach(function (r) {
       var price = Number(r.price) || 0;
-      total += price;
+      sum += price;
+      // note＝丸刈り／ロング。料金表と違って見える行の理由なので、金額の隣に添える
+      var menu = esc(r.menu) + (r.note ? '<span class="list-note">（' + esc(r.note) + "）</span>" : "");
       html += "<tr>" +
         "<td>" + esc(r.time) + "</td>" +
         "<td>" + esc(r.visit) + "</td>" +
         "<td>" + esc(r.gender) + "</td>" +
-        "<td>" + esc(r.menu) + "</td>" +
+        "<td>" + menu + "</td>" +
         '<td class="num">' + price.toLocaleString("ja-JP") + "</td>" +
         "</tr>";
     });
     html += "</tbody></table>";
-    // ★合計は受け取った行から出す（帯の数字と別経路にしない）。
-    //   ここがずれていたら、行と合計のどちらかがおかしいと画面で分かる。
-    html += '<div class="list-total">合計 ' + rows.length + " 人 ／ " +
-      total.toLocaleString("ja-JP") + " 円</div>";
+
+    // ★出す合計はサーバの count / amount（数えるのは1か所）。
+    //   ただし受け取った行を足した額とずれていたら、それは payload 自体の異常なので黙らせない。
+    var srvCount = (data.count === undefined) ? rows.length : Number(data.count);
+    var srvAmount = (data.amount === undefined) ? sum : Number(data.amount);
+    html += '<div class="list-total">合計 ' + srvCount + " 人 ／ " +
+      srvAmount.toLocaleString("ja-JP") + " 円</div>";
+    if (srvCount !== rows.length || srvAmount !== sum) {
+      html += '<div class="list-msg">合計と明細が一致しません（明細 ' + rows.length + " 人 ／ " +
+        sum.toLocaleString("ja-JP") + " 円）</div>";
+    }
     body.innerHTML = html;
   }
 

@@ -62,6 +62,15 @@
     if (el) el.textContent = text;
   }
 
+  /*
+   * ★受け口の公開版が古い（action:"today" を知らない）場合の自衛。
+   *   古い版はこの要求を「record_id の無い記録」とみなして拒否し、★拒否ログに1行書く。
+   *   画面1に戻るたびに呼ぶので、放っておくと拒否ログが客数ぶん溜まる。
+   *   一度そう分かったら、その場で呼ぶのをやめる（記録の送信そのものには影響しない）。
+   */
+  var todayDisabled = false;
+  var todayDisabledNote = "";
+
   function renderTodayBar(data) {
     var bar = document.getElementById("today-bar");
     var alertEl = document.getElementById("today-alert");
@@ -77,9 +86,18 @@
       setText("today-count", "—");
       setText("today-amount", "");
       if (bar) bar.classList.remove("is-closed");
-      notes.unshift(
-        (data && data.reason === "no_token") ? "この端末は未登録です" : "数字を取得できません（通信）"
-      );
+      if (data && data.reason === "no_token") {
+        notes.unshift("この端末は未登録です");
+      } else if (data && data.reason === "server" && data.msg === "no_record_id") {
+        // 公開版が古い。呼び続けると拒否ログが溜まるので、この画面では以降呼ばない。
+        todayDisabled = true;
+        todayDisabledNote = "受け口が未更新です（デプロイし直してください）";
+        notes.unshift(todayDisabledNote);
+      } else if (todayDisabled) {
+        notes.unshift(todayDisabledNote);
+      } else {
+        notes.unshift("数字を取得できません（通信）");
+      }
     } else if (data.closed) {
       setText("today-last", data.last || "—");
       setText("today-count", "本日休業");
@@ -109,6 +127,7 @@
   }
 
   function refreshTodayBar() {
+    if (todayDisabled) { renderTodayBar(null); return; }
     // 取りに行っている間は、前の数字を残さない（古い値を突合に使わせない）
     renderTodayBar(null);
     setText("today-last", "…");

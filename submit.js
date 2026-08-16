@@ -226,7 +226,11 @@
       return res.text().then(function (t) {
         var body = null;
         try { body = JSON.parse(t); } catch (e) { /* 読めなければ失敗扱い */ }
-        if (!body || body.ok !== true) return { ok: false, reason: "unreadable" };
+        if (!body) return { ok: false, reason: "unreadable" };
+        // ★受け口が返した理由をそのまま持ち帰る。
+        //   特に "no_record_id" は「受け口が action:today を知らない＝公開版が古い」印。
+        //   この時、受け口側は拒否ログに1行書くので、呼び続けるとログが溜まる。
+        if (body.ok !== true) return { ok: false, reason: "server", msg: String(body.msg || "") };
         return body;
       });
     }).catch(function (e) {

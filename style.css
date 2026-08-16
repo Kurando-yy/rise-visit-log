@@ -122,6 +122,8 @@ html, body {
   position: relative;
 }
 
+/* ★文字の大きさ・太さは「ご来店は？」（.screen-title）と同じにする（司令 2026-08-16）。
+   小さくて読めない、という実機での指摘に合わせた。 */
 .today-bar {
   position: absolute;
   top: 0;
@@ -130,12 +132,14 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  align-items: center;
-  gap: 8px 32px;
-  padding: 14px 20px;
+  align-items: baseline;
+  gap: 4px 40px;
+  padding: 18px 20px;
   background: #f2ede4;
   border-bottom: 1px solid var(--color-border);
-  font-size: clamp(1rem, 1.8vw, 1.35rem);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.25;
   color: #555;
   pointer-events: none; /* 誤タップで操作を邪魔しない */
 }
@@ -147,8 +151,11 @@ html, body {
   white-space: nowrap;
 }
 
+/* 見出し（最終入力／本日 入力済み）は、数字より一段だけ小さくする。
+   同じ大きさだと、どれが数字か一目で分からなくなるため。 */
 .today-label {
-  font-size: 0.85em;
+  font-size: 0.6em;
+  font-weight: 700;
   color: #888;
 }
 
@@ -162,7 +169,8 @@ html, body {
 .today-alert {
   flex-basis: 100%;
   text-align: center;
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 0.75em;   /* 帯が伸びすぎないよう、数字より少しだけ小さく */
   font-weight: 700;
   color: #a3341f;
 }

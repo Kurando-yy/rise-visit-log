@@ -145,6 +145,86 @@
     refreshTodayBar();
   }
 
+  /*
+   * ── 本日の一覧（ダイアログ） ──────────────────────────────────
+   * 司令 2026-08-16: 入力時間 / 来店回数 / 性別 / メニュー名 / 金額 を一覧で。
+   * ★中身はサーバが並べて整形したものをそのまま出す。端末で数えも並べ替えもしない。
+   *   受信日時はシート上で 0埋めが落ちるため、端末で時刻を解釈すると午前10時以降に狂う。
+   */
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function renderTodayList(data) {
+    var body = document.getElementById("list-body");
+    if (!body) return;
+
+    if (!data || data.ok !== true) {
+      var msg = "一覧を取得できません（通信）";
+      if (data && data.reason === "no_token") {
+        msg = "この端末は未登録です";
+      } else if (data && data.reason === "server" && data.msg === "no_record_id") {
+        // ★帯と同じ自衛。古い受け口はこの要求を拒否ログに1行書くので、以降は叩かない。
+        todayDisabled = true;
+        todayDisabledNote = "受け口が未更新です（デプロイし直してください）";
+        msg = todayDisabledNote;
+      } else if (data && data.reason === "server") {
+        msg = "一覧を取得できません（" + esc(data.msg) + "）";
+      }
+      body.innerHTML = '<div class="list-msg">' + esc(msg) + "</div>";
+      return;
+    }
+
+    var rows = data.rows || [];
+    if (rows.length === 0) {
+      body.innerHTML = '<div class="list-msg">' +
+        (data.closed ? "本日は休業日です" : "まだ1件も入力されていません") + "</div>";
+      return;
+    }
+
+    var total = 0;
+    var html = '<table class="list-table"><thead><tr>' +
+      "<th>入力時間</th><th>来店</th><th>性別</th><th>メニュー</th><th>金額</th>" +
+      "</tr></thead><tbody>";
+    rows.forEach(function (r) {
+      var price = Number(r.price) || 0;
+      total += price;
+      html += "<tr>" +
+        "<td>" + esc(r.time) + "</td>" +
+        "<td>" + esc(r.visit) + "</td>" +
+        "<td>" + esc(r.gender) + "</td>" +
+        "<td>" + esc(r.menu) + "</td>" +
+        '<td class="num">' + price.toLocaleString("ja-JP") + "</td>" +
+        "</tr>";
+    });
+    html += "</tbody></table>";
+    // ★合計は受け取った行から出す（帯の数字と別経路にしない）。
+    //   ここがずれていたら、行と合計のどちらかがおかしいと画面で分かる。
+    html += '<div class="list-total">合計 ' + rows.length + " 人 ／ " +
+      total.toLocaleString("ja-JP") + " 円</div>";
+    body.innerHTML = html;
+  }
+
+  function openTodayList() {
+    var ov = document.getElementById("list-overlay");
+    var body = document.getElementById("list-body");
+    if (!ov || !body) return;
+    ov.hidden = false;
+    if (todayDisabled) {
+      // 受け口が古いと分かっている間は叩かない（拒否ログを増やさない）
+      body.innerHTML = '<div class="list-msg">' + esc(todayDisabledNote) + "</div>";
+      return;
+    }
+    body.textContent = "読み込み中…";
+    SUBMIT.fetchTodayList().then(renderTodayList).catch(function () { renderTodayList(null); });
+  }
+
+  function closeTodayList() {
+    var ov = document.getElementById("list-overlay");
+    if (ov) ov.hidden = true;
+  }
+
   function goScreen2() {
     showOnly("s2");
   }
@@ -288,6 +368,14 @@
   });
 
   document.getElementById("btn-confirm").addEventListener("click", confirmAndSubmit);
+
+  // 本日の一覧（開く／閉じる）
+  document.getElementById("btn-today-list").addEventListener("click", openTodayList);
+  document.getElementById("btn-list-close").addEventListener("click", closeTodayList);
+  // ★暗い部分を押しても閉じる（バツを探せない時の逃げ道）。中身を押した時は閉じない。
+  document.getElementById("list-overlay").addEventListener("click", function (e) {
+    if (e.target === this) closeTodayList();
+  });
 
   // 起動時に未送信キューがあれば再送を試みる（Wi-Fi復帰後などを想定）
   SUBMIT.retryPending();

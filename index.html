@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>RISE南関町 来店記録</title>
-<link rel="stylesheet" href="style.css?v=20260816d">
+<link rel="stylesheet" href="style.css?v=20260816e">
 </head>
 <body>
 
@@ -28,6 +28,9 @@
     </div>
     <div id="today-alert" class="today-alert" hidden></div>
   </div>
+  <!-- ★本日の一覧（司令 2026-08-16）。レジとの突合に使う。
+       帯は pointer-events:none なので、押せるのはこのボタンだけ。 -->
+  <button id="btn-today-list" type="button" class="list-btn">本日の一覧</button>
   <div class="screen-title">ご来店は？</div>
   <div class="btn-grid">
     <button id="btn-first" type="button" class="tap-btn">初めて</button>
@@ -87,10 +90,21 @@
   <div class="hint">確定後、自動的に最初の画面へ戻ります</div>
 </section>
 
-<script src="menu.config.js?v=20260816d"></script>
-<script src="menu.logic.js?v=20260816d"></script>
-<script src="ui.flags.js?v=20260816d"></script>
-<script src="submit.js?v=20260816d"></script>
-<script src="app.js?v=20260816d"></script>
+<!-- 本日の一覧（ダイアログ）。★入力画面とは独立。開いている間は入力操作をしない -->
+<div id="list-overlay" class="list-overlay" hidden>
+  <div class="list-panel" role="dialog" aria-modal="true" aria-label="本日の一覧">
+    <div class="list-head">
+      <div class="list-title">本日の一覧</div>
+      <button id="btn-list-close" type="button" class="list-close" aria-label="閉じる">✕</button>
+    </div>
+    <div id="list-body" class="list-body">読み込み中…</div>
+  </div>
+</div>
+
+<script src="menu.config.js?v=20260816e"></script>
+<script src="menu.logic.js?v=20260816e"></script>
+<script src="ui.flags.js?v=20260816e"></script>
+<script src="submit.js?v=20260816e"></script>
+<script src="app.js?v=20260816e"></script>
 </body>
 </html>

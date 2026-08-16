@@ -238,6 +238,32 @@
     });
   }
 
+  /**
+   * 本日の一覧（司令 2026-08-16・レジとの突合用）。
+   * ★並べ替えも時刻の整形もサーバ側でやってもらう。端末では加工しない。
+   *   受信日時はシート上で 0埋めが落ちるため、端末で解釈すると午前10時以降に狂う。
+   */
+  function fetchTodayList() {
+    var token = getToken();
+    if (!token) return Promise.resolve({ ok: false, reason: "no_token" });
+    return fetch(SUBMIT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "today_list", token: token })
+    }).then(function (res) {
+      if (!res.ok) return { ok: false, reason: "http_" + res.status };
+      return res.text().then(function (t) {
+        var body = null;
+        try { body = JSON.parse(t); } catch (e) { /* 読めなければ失敗扱い */ }
+        if (!body) return { ok: false, reason: "unreadable" };
+        if (body.ok !== true) return { ok: false, reason: "server", msg: String(body.msg || "") };
+        return body;
+      });
+    }).catch(function (e) {
+      return { ok: false, reason: "network:" + (e && e.message ? e.message : "error") };
+    });
+  }
+
   /** まだ送れていない件数。★サーバは知りようがない＝端末だけが持つ情報 */
   function pendingCount() {
     try { return loadQueue().length; } catch (e) { return 0; }
@@ -325,6 +351,7 @@
     submitRecord: submitRecord,
     retryPending: retryPending,
     fetchToday: fetchToday,
+    fetchTodayList: fetchTodayList,
     pendingCount: pendingCount,
     buildRecord: buildRecord,
     toJstIsoString: toJstIsoString,

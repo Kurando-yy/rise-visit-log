@@ -178,3 +178,129 @@ html, body {
 .today-bar.is-closed .today-value {
   color: #888;
 }
+
+/*
+ * 本日の一覧（司令 2026-08-16）
+ * ★お客様の目にも入る画面なので、来店用のボタン（緑・特大）とは
+ *   はっきり別物に見せる。押し間違いで一覧が開くのを避ける。
+ */
+.list-btn {
+  position: absolute;
+  top: 96px;      /* 帯の下 */
+  right: 20px;
+  min-height: 64px;
+  padding: 12px 24px;
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  background: #fff;
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.list-btn:active {
+  background: #eef4f0;
+}
+
+.list-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10;
+}
+
+.list-overlay[hidden] {
+  display: none;
+}
+
+.list-panel {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.list-title {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 700;
+}
+
+.list-close {
+  min-width: 64px;
+  min-height: 64px;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #444;
+  background: #f0ece5;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.list-body {
+  overflow: auto;
+  padding: 8px 20px 20px;
+  text-align: left;
+}
+
+.list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.list-table th,
+.list-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e6e1d8;
+  white-space: nowrap;
+}
+
+.list-table th {
+  font-size: 0.8em;
+  color: #888;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+
+.list-table td.num {
+  text-align: right;
+}
+
+.list-total {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid var(--color-border);
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  font-weight: 700;
+  text-align: right;
+  color: var(--color-primary-dark);
+}
+
+.list-msg {
+  padding: 24px 0;
+  font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+  font-weight: 700;
+  color: #a3341f;
+  text-align: center;
+}

@@ -50,9 +50,70 @@
     });
   }
 
+  /*
+   * ── 画面1上部の帯 ────────────────────────────────────────────
+   * 目的（司令 2026-08-16）: ①入力し忘れの防止 ②レジとの突合
+   * ★数字はサーバ（GAS）が数えたものをそのまま出す。端末では数え直さない。
+   *   取得できない時は、前の数字も 0 も出さず「取得できません」と出す。
+   *   古い数字を正しい顔で見せると、突合しているつもりで合っていない状態になる。
+   */
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function renderTodayBar(data) {
+    var bar = document.getElementById("today-bar");
+    var alertEl = document.getElementById("today-alert");
+    var notes = [];
+
+    var pending = 0;
+    try { pending = SUBMIT.pendingCount(); } catch (e) { pending = 0; }
+    if (pending > 0) notes.push("未送信 " + pending + " 件");
+
+    if (!data || data.ok !== true) {
+      // ★ここで 0 を出さない。「0人」と「分からない」は別物。
+      setText("today-last", "—");
+      setText("today-count", "—");
+      setText("today-amount", "—");
+      if (bar) bar.classList.remove("is-closed");
+      notes.unshift(
+        (data && data.reason === "no_token") ? "この端末は未登録です" : "数字を取得できません（通信）"
+      );
+    } else if (data.closed) {
+      setText("today-last", data.last || "—");
+      setText("today-count", "本日休業");
+      setText("today-amount", "—");
+      if (bar) bar.classList.add("is-closed");
+    } else {
+      setText("today-last", data.last || "まだありません");
+      setText("today-count", (Number(data.count) || 0) + " 人");
+      setText("today-amount", (Number(data.amount) || 0).toLocaleString("ja-JP") + " 円");
+      if (bar) bar.classList.remove("is-closed");
+    }
+
+    if (alertEl) {
+      alertEl.textContent = notes.join(" ／ ");
+      alertEl.hidden = notes.length === 0;
+    }
+  }
+
+  function refreshTodayBar() {
+    // 取りに行っている間は、前の数字を残さない（古い値を突合に使わせない）
+    renderTodayBar(null);
+    setText("today-last", "…");
+    setText("today-count", "…");
+    setText("today-amount", "…");
+    var alertEl = document.getElementById("today-alert");
+    if (alertEl) alertEl.hidden = true;
+
+    SUBMIT.fetchToday().then(renderTodayBar).catch(function () { renderTodayBar(null); });
+  }
+
   function goScreen1() {
     resetState();
     showOnly("s1");
+    refreshTodayBar();
   }
 
   function goScreen2() {
@@ -134,13 +195,16 @@
     confirmBtn.disabled = true;
 
     var record = SUBMIT.buildRecord(state);
-    SUBMIT.submitRecord(record);
+    // ★送信の完了を待ってから画面1へ戻す。待たずに戻すと、上部の帯が
+    //   「1件前」の数字を取りに行き、押した直後だけ数が合わないように見える。
+    var sent = SUBMIT.submitRecord(record).catch(function () { /* 画面は止めない */ });
     SUBMIT.retryPending(); // ついでに未送信キューの再送も試みる
 
-    setTimeout(function () {
+    var waited = new Promise(function (r) { setTimeout(r, FLAGS.AUTO_RETURN_MS); });
+    Promise.all([sent, waited]).then(function () {
       confirmBtn.disabled = false;
       goScreen1();
-    }, FLAGS.AUTO_RETURN_MS);
+    });
   }
 
   // ---- イベント登録 ----

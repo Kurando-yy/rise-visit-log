@@ -112,3 +112,61 @@ html, body {
   color: #777;
   font-size: 1rem;
 }
+
+/*
+ * 画面1上部の帯（最終入力 / 本日の客数 / 本日の売上）
+ * ★お客様もこの画面を見る可能性があるため、控えめな見た目にしてある
+ *   （タップ対象と紛れないよう、ボタン色は使わない・押せる見た目にしない）。
+ */
+#screen-1 {
+  position: relative;
+}
+
+.today-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 32px;
+  padding: 14px 20px;
+  background: #f2ede4;
+  border-bottom: 1px solid var(--color-border);
+  font-size: clamp(1rem, 1.8vw, 1.35rem);
+  color: #555;
+  pointer-events: none; /* 誤タップで操作を邪魔しない */
+}
+
+.today-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.today-label {
+  font-size: 0.85em;
+  color: #888;
+}
+
+.today-value {
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 取得できなかった時・未送信がある時。★数字を推測して出さないための表示 */
+.today-alert {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: 4px;
+  font-weight: 700;
+  color: #a3341f;
+}
+
+.today-bar.is-closed .today-value {
+  color: #888;
+}

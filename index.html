@@ -4,12 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>RISE南関町 来店記録</title>
-<link rel="stylesheet" href="style.css?v=20260811a">
+<link rel="stylesheet" href="style.css?v=20260816a">
 </head>
 <body>
 
-<!-- 画面1: ご来店は？ -->
+<!-- 画面1: ご来店は？
+     ★上部の帯は「入力し忘れ防止」と「レジとの突合」のため（司令 2026-08-16）。
+       数字はサーバ（GAS）が数えたものをそのまま出す。端末では数え直さない。
+       通信できない時は数字を推測せず「取得できません」と出す。 -->
 <section id="screen-1" class="screen">
+  <div id="today-bar" class="today-bar">
+    <div class="today-cell">
+      <span class="today-label">最終入力</span>
+      <span id="today-last" class="today-value">…</span>
+    </div>
+    <div class="today-cell">
+      <span class="today-label">本日</span>
+      <span id="today-count" class="today-value">…</span>
+    </div>
+    <div class="today-cell">
+      <span class="today-label">売上</span>
+      <span id="today-amount" class="today-value">…</span>
+    </div>
+    <div id="today-alert" class="today-alert" hidden></div>
+  </div>
   <div class="screen-title">ご来店は？</div>
   <div class="btn-grid">
     <button id="btn-first" type="button" class="tap-btn">初めて</button>
@@ -69,10 +87,10 @@
   <div class="hint">確定後、自動的に最初の画面へ戻ります</div>
 </section>
 
-<script src="menu.config.js?v=20260811a"></script>
-<script src="menu.logic.js?v=20260811a"></script>
-<script src="ui.flags.js?v=20260811a"></script>
-<script src="submit.js?v=20260811a"></script>
-<script src="app.js?v=20260811a"></script>
+<script src="menu.config.js?v=20260816a"></script>
+<script src="menu.logic.js?v=20260816a"></script>
+<script src="ui.flags.js?v=20260816a"></script>
+<script src="submit.js?v=20260816a"></script>
+<script src="app.js?v=20260816a"></script>
 </body>
 </html>

@@ -203,6 +203,42 @@
     });
   }
 
+  /*
+   * ── 本日の状況の取得（画面上部の表示用） ──────────────────────────
+   * ★数えるのはサーバ（GAS）1か所だけ。端末では数え直さない。
+   *   端末で別に数えると、集計の数え方を変えた時に画面とシートが食い違い、
+   *   どちらが正しいか分からなくなる（2026-08-16 マリアと確認）。
+   *   端末が持っているのは「まだ送れていない件数」だけで、これはサーバには分からない。
+   *
+   * ★経路は doGet ではなく doPost に相乗りしている。
+   *   理由: この POST(text/plain) は本番で通ることが実証済みで、
+   *   トークンが URL・履歴に残らない。GET は一度も通していない。
+   */
+  function fetchToday() {
+    var token = getToken();
+    if (!token) return Promise.resolve({ ok: false, reason: "no_token" });
+    return fetch(SUBMIT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "today", token: token })
+    }).then(function (res) {
+      if (!res.ok) return { ok: false, reason: "http_" + res.status };
+      return res.text().then(function (t) {
+        var body = null;
+        try { body = JSON.parse(t); } catch (e) { /* 読めなければ失敗扱い */ }
+        if (!body || body.ok !== true) return { ok: false, reason: "unreadable" };
+        return body;
+      });
+    }).catch(function (e) {
+      return { ok: false, reason: "network:" + (e && e.message ? e.message : "error") };
+    });
+  }
+
+  /** まだ送れていない件数。★サーバは知りようがない＝端末だけが持つ情報 */
+  function pendingCount() {
+    try { return loadQueue().length; } catch (e) { return 0; }
+  }
+
   /**
    * 端末のタイムゾーン設定に関係なく JST(+09:00) の ISO 8601 文字列を返す。
    * 記録要件「日時（ISO・JST）」に対応（計画書 §送信部）。
@@ -284,6 +320,8 @@
     getMode: getMode,
     submitRecord: submitRecord,
     retryPending: retryPending,
+    fetchToday: fetchToday,
+    pendingCount: pendingCount,
     buildRecord: buildRecord,
     toJstIsoString: toJstIsoString,
     _loadQueue: loadQueue, // テスト用

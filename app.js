@@ -75,7 +75,7 @@
       // ★ここで 0 を出さない。「0人」と「分からない」は別物。
       setText("today-last", "—");
       setText("today-count", "—");
-      setText("today-amount", "—");
+      setText("today-amount", "");
       if (bar) bar.classList.remove("is-closed");
       notes.unshift(
         (data && data.reason === "no_token") ? "この端末は未登録です" : "数字を取得できません（通信）"
@@ -83,13 +83,23 @@
     } else if (data.closed) {
       setText("today-last", data.last || "—");
       setText("today-count", "本日休業");
-      setText("today-amount", "—");
+      setText("today-amount", "");
       if (bar) bar.classList.add("is-closed");
     } else {
-      setText("today-last", data.last || "まだありません");
+      // ★時刻だけだと、見た人が引き算をしないと「空きすぎ」に気づけない。
+      //   経過分をそのまま添える（司令の意図＝入力し忘れの防止）。
+      var last = data.last || "";
+      var mins = (data.since_min === null || data.since_min === undefined) ? null : Number(data.since_min);
+      setText("today-last", last ? (mins === null ? last : last + "（" + mins + "分前）") : "まだありません");
       setText("today-count", (Number(data.count) || 0) + " 人");
       setText("today-amount", (Number(data.amount) || 0).toLocaleString("ja-JP") + " 円");
       if (bar) bar.classList.remove("is-closed");
+
+      // ★「何分空いたら警告か」はサーバ（設定シート しきい値_分）が決める。
+      //   ここに分数を書くと、設定を変えた時に画面とGASで基準が2つになる。
+      if (data.alert === true) {
+        notes.unshift(mins === null ? "入力が空いています" : mins + "分 入力がありません");
+      }
     }
 
     if (alertEl) {

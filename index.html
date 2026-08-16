@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>RISE南関町 来店記録</title>
-<link rel="stylesheet" href="style.css?v=20260816a">
+<link rel="stylesheet" href="style.css?v=20260816b">
 </head>
 <body>
 
@@ -18,12 +18,12 @@
       <span class="today-label">最終入力</span>
       <span id="today-last" class="today-value">…</span>
     </div>
+    <!-- ★見出しは「売上」ではなく「入力済み」。
+         レジの数字と一致していない前提（司令 2026-08-16「すでに全日違ってる」）なので、
+         これはレジの売上ではなく "この画面から入力された分" だと分かる語にする。 -->
     <div class="today-cell">
-      <span class="today-label">本日</span>
+      <span class="today-label">本日 入力済み</span>
       <span id="today-count" class="today-value">…</span>
-    </div>
-    <div class="today-cell">
-      <span class="today-label">売上</span>
       <span id="today-amount" class="today-value">…</span>
     </div>
     <div id="today-alert" class="today-alert" hidden></div>
@@ -87,10 +87,10 @@
   <div class="hint">確定後、自動的に最初の画面へ戻ります</div>
 </section>
 
-<script src="menu.config.js?v=20260816a"></script>
-<script src="menu.logic.js?v=20260816a"></script>
-<script src="ui.flags.js?v=20260816a"></script>
-<script src="submit.js?v=20260816a"></script>
-<script src="app.js?v=20260816a"></script>
+<script src="menu.config.js?v=20260816b"></script>
+<script src="menu.logic.js?v=20260816b"></script>
+<script src="ui.flags.js?v=20260816b"></script>
+<script src="submit.js?v=20260816b"></script>
+<script src="app.js?v=20260816b"></script>
 </body>
 </html>

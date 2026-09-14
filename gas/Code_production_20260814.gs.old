@@ -1,0 +1,459 @@
+/**
+ * ライズ南関町 来店記録 受け口（Google Apps Script）
+ * 作成: Maria(CSO) 2026-08-10
+ *
+ * 【この中にトークンは書きません】
+ *   Apps Script の「プロジェクトの設定 → スクリプトプロパティ」に
+ *   RISE_TOKEN という名前で値を入れてください（司令の操作）。
+ *
+ * 【列は名前で振り分けます】
+ *   シートの1行目（見出し）を読んで対応づけるので、
+ *   列を足しても順番を変えても、端末側は変更不要です。
+ */
+
+var SHEET_ID  = '1vMgPbBSpPNTXiYrBCAasQlBpJAP2mO26_bblbv5ueRg'; // ライズ南関町_来店記録明細
+var PROP_NAME = 'RISE_TOKEN';
+var TZ        = 'Asia/Tokyo';
+var TAB_PRICE  = '料金表';
+var TAB_REJECT = '拒否ログ';
+
+/**
+ * 端末から送られてくる項目名 → シートの見出し名
+ * ★ 金額・丸刈り・ロング加算は端末の値を書きません。
+ *    料金表から求めた値をサーバ側で入れます（改ざん防止）。
+ */
+var FIELD_MAP = {
+  record_id:     'record_id',
+  timestamp_iso: '端末送信日時',
+  visit_type:    '来店回数',
+  gender:        '性別',
+  section:       '区分',
+  menu_id:       'メニューid',
+  menu_name:     'メニュー名',
+  device:        '端末'
+};
+
+/**
+ * 端末が送る英語の値 → 日本語表記
+ * ★ 表記は既存タブ「来店記録02」の見出しに合わせています。
+ *   （2026-08-10 に実シートのA1:K1を読んで確認：初めて / 2回目〜 / 男 / 女）
+ *   一覧に無い値が来たら、変換せずそのまま書きます（取りこぼさないため）。
+ */
+var VALUE_MAP = {
+  visit_type: { first: '初めて', repeat: '2回目〜' },
+  gender:     { MEN: '男', WOMAN: '女' },
+  section:    { CUT: 'カット', COLOR: 'カラー', PERMA: 'パーマ' }
+};
+
+function ja_(field, value) {
+  var m = VALUE_MAP[field];
+  if (!m) return value;
+  var v = (value === null || value === undefined) ? '' : String(value);
+  return (m[v] !== undefined) ? m[v] : value;
+}
+
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000); // 同時に届いても取りこぼさない
+  } catch (err) {
+    return reply(false, 'busy');
+  }
+  try {
+    if (!e || !e.postData || !e.postData.contents) return reply(false, 'no_body');
+
+    var body;
+    try { body = JSON.parse(e.postData.contents); }
+    catch (err) { return reply(false, 'bad_json'); }
+
+    // --- ① トークン照合 ---
+    var token = PropertiesService.getScriptProperties().getProperty(PROP_NAME);
+    // ★トークン失敗も記録する。司令がトークンを変えて端末の再登録を忘れた場合、
+    //   本物のお客様の記録がここで弾かれるため、気づけるようにしておく。
+    //   ただし本文は残さない（トークンらしき文字列を書き込まないため）。
+    if (!token)               return ng_('token_not_configured', '', body, null);
+    if (body.token !== token) return ng_('bad_token', '', body, null);
+
+    // --- ② 必須項目 ---
+    if (!body.record_id) return ng_('no_record_id', '', body, e.postData.contents);
+    if (!body.menu_id)   return ng_('no_menu_id', '', body, e.postData.contents);
+
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    // ★ 本番タブへ入るのは mode が 'live' のときだけ。
+    //    未指定・打ち間違いは「試験」へ落とす（本番を汚さない側に倒す）。
+    var tab = (body.mode === 'live') ? '本番' : '試験';
+    var sh  = ss.getSheetByName(tab);
+    if (!sh) return ng_('no_sheet:' + tab, tab, body, e.postData.contents);
+
+    // --- ③ 金額をサーバ側の料金表と照合 ---
+    var priceCheck = checkPrice_(ss, body);
+    if (!priceCheck.ok) return ng_(priceCheck.reason, tab, body, e.postData.contents);
+
+    var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+
+    // --- ④ record_id の重複はスキップ（通信が不安定な日の水増し防止）---
+    var idCol = headers.indexOf('record_id') + 1;
+    if (idCol < 1) return ng_('no_record_id_column', tab, body, e.postData.contents);
+    var last = sh.getLastRow();
+    if (last >= 2) {
+      var ids = sh.getRange(2, idCol, last - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]) === String(body.record_id)) {
+          return reply(true, 'duplicate_skipped'); // 端末には成功として返す（再送を止める）
+        }
+      }
+    }
+
+    // --- ⑤ 受信時刻はサーバで採番（端末の時計は信用しない）---
+    var now  = new Date();
+    var vals = {};
+    vals['日付']           = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+    vals['受信日時(サーバ)'] = Utilities.formatDate(now, TZ, 'yyyy-MM-dd HH:mm:ss');
+    for (var key in FIELD_MAP) {
+      var raw = (body[key] === undefined) ? '' : body[key];
+      vals[FIELD_MAP[key]] = ja_(key, raw);   // 日本語表記に直して書く
+    }
+    // ★ 金額まわりはサーバ側で確定した値を書く（端末の値は書かない）
+    vals['金額']       = priceCheck.price;
+    vals['丸刈り']     = priceCheck.kari ? '丸刈り' : '';
+    vals['ロング加算'] = priceCheck.longAdd ? priceCheck.longAdd : '';
+
+    // --- ⑥ 見出し名を見て列に振り分けて追記 ---
+    var row = headers.map(function (h) {
+      return (vals[h] === undefined) ? '' : vals[h];
+    });
+    sh.appendRow(row);
+
+    return reply(true, 'ok');
+  } catch (err) {
+    return reply(false, 'error:' + err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 料金表タブと突き合わせる
+ *   列 = メニューid / メニュー名 / 金額 / 丸刈り金額 / ロング加算 / 備考
+ * ★ 金額はすべてシートの値から組み立てます。端末が送ってきた
+ *    long_add・price は計算に一切使いません（改ざん防止）。
+ */
+function checkPrice_(ss, body) {
+  var ps = ss.getSheetByName(TAB_PRICE);
+  if (!ps) return { ok: false, reason: 'no_price_sheet' };
+  var last = ps.getLastRow();
+  if (last < 2) return { ok: false, reason: 'price_table_empty' };
+
+  var rows = ps.getRange(2, 1, last - 1, 6).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) !== String(body.menu_id)) continue;
+
+    var base    = Number(rows[i][2]);
+    var kari    = (rows[i][3] === '' || rows[i][3] === null) ? null : Number(rows[i][3]);
+    var longAdd = (rows[i][4] === '' || rows[i][4] === null) ? null : Number(rows[i][4]);
+    // 備考の「下限（〜表記）」は、いまは緩めません（隊長判断 2026-08-10）。
+    // 端末は下限額しか送れないため、緩めると検査に穴が開くだけになります。
+    // 金額の手入力を足す時（未確定#9）に、その仕様に合わせて見直します。
+    var got = Number(body.price);
+    if (isNaN(got) || isNaN(base)) return { ok: false, reason: 'price_not_number' };
+
+    // 丸刈り：設定が無い品目に丸刈りが来たら弾く
+    if (body.kari_applied && kari === null) {
+      return { ok: false, reason: 'kari_not_available:' + body.menu_id };
+    }
+    // ロング加算：設定が無い品目にロングが来たら弾く
+    if (body.long_applied && longAdd === null) {
+      return { ok: false, reason: 'long_not_available:' + body.menu_id };
+    }
+
+    var expected = body.kari_applied ? kari : base;
+    var addUsed  = body.long_applied ? longAdd : 0;
+    expected += addUsed;
+
+    if (got !== expected) {
+      return { ok: false, reason: 'price_mismatch:expected' + expected + ',got' + got };
+    }
+    return { ok: true, price: got, kari: !!body.kari_applied, longAdd: addUsed };
+  }
+  return { ok: false, reason: 'unknown_menu_id:' + body.menu_id };
+}
+
+/**
+ * 弾いた記録を「拒否ログ」タブに残す。
+ * ★これが無いと、端末が応答を読めない作りの場合、
+ *   弾かれた1件が誰にも気づかれずに消えます（お客様1人分の記録が失われる）。
+ * ★トークンはログにも残しません。
+ */
+function logReject_(reason, tab, body, raw) {
+  try {
+    var sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(TAB_REJECT);
+    if (!sh) return;
+    var safe = '';
+    if (raw !== null && raw !== undefined) {
+      try {
+        var o = JSON.parse(raw);
+        delete o.token;                  // トークンは記録しない
+        safe = JSON.stringify(o);
+      } catch (e2) { safe = '(読めない本文)'; }
+    }
+    sh.appendRow([
+      Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'),
+      reason,
+      tab || '',
+      (body && body.record_id) ? body.record_id : '',
+      String(safe).slice(0, 4000)
+    ]);
+  } catch (err) {
+    // 記録に失敗しても、本処理は止めない
+  }
+}
+
+/** 拒否ログに残してから、端末へ拒否を返す */
+function ng_(reason, tab, body, raw) {
+  logReject_(reason, tab, body, raw);
+  return reply(false, reason);
+}
+
+function reply(ok, msg) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: ok, msg: msg }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * 動作確認用。エディタ上部の関数名の欄で「selfTest」を選んで実行してください。
+ * ★名前の末尾に _ を付けると「非公開」扱いになり、実行の一覧に出てきません。
+ *   （2026-08-10 に私が _ 付きで出してしまい、司令が実行できませんでした）
+ */
+function selfTest() {
+  var token = PropertiesService.getScriptProperties().getProperty(PROP_NAME);
+  var cases = [
+    // [説明, 送る中身, 期待]
+    ['通常（カット1300）',
+     { menu_id: 'men-cut-cut', menu_name: 'カット', price: 1300 }, '通る'],
+    ['丸刈り（カットとシャンプー→1700）',
+     { menu_id: 'men-cut-cutshampoo', menu_name: 'カットとシャンプー', price: 1700, kari_applied: true }, '通る'],
+    ['丸刈りの設定が無い品目に丸刈り',
+     { menu_id: 'men-cut-cut', menu_name: 'カット', price: 1700, kari_applied: true }, '弾く'],
+    ['ロング加算（白髪染め4550+600）',
+     { menu_id: 'woman-color-shiragazome', menu_name: '白髪染め', price: 5150, long_applied: true }, '通る'],
+    ['端末が加算額を水増し（+99999）',
+     { menu_id: 'woman-color-shiragazome', menu_name: '白髪染め', price: 104549, long_applied: true, long_add: 99999 }, '弾く'],
+    ['下限品目も完全一致（パーマ6500→8000は弾く）',
+     { menu_id: 'woman-perma-perma', menu_name: 'パーマ', price: 8000 }, '弾く'],
+    ['知らないメニューid',
+     { menu_id: 'nazo-menu', menu_name: '謎', price: 1000 }, '弾く']
+  ];
+  for (var i = 0; i < cases.length; i++) {
+    var p = cases[i][1];
+    p.token = token; p.mode = 'test';
+    p.record_id = 'selftest-' + new Date().getTime() + '-' + i;
+    p.timestamp_iso = '2026-08-10T12:00:00+09:00';
+    p.visit_type = 'repeat'; p.gender = 'MEN'; p.section = 'CUT'; p.device = 'selftest';
+    var res = doPost({ postData: { contents: JSON.stringify(p) } });
+    Logger.log('[' + cases[i][2] + '] ' + cases[i][0] + ' → ' + res.getContent());
+  }
+}
+
+
+/* ============================================================
+   ここから下は 2026-08-10 追加分
+   ・日次集計       毎晩23時（Google側で動くので、パソコンの電源に関係ありません）
+   ・朝の確認       毎朝8時30分
+   ・タップゼロ通知   1時間ごと（大神の仕様どおり）
+   ★設定は「設定」タブの値を読みます。数字を変えるのにコードは触りません。
+   ============================================================ */
+
+var TAB_CONF = '設定';
+
+/** 設定タブを { 項目: 値 } で読む */
+function conf_() {
+  var sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(TAB_CONF);
+  if (!sh) return {};
+  var v = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 2).getValues();
+  var o = {};
+  for (var i = 0; i < v.length; i++) {
+    if (v[i][0]) o[String(v[i][0]).trim()] = String(v[i][1]).trim();
+  }
+  return o;
+}
+
+function hhmmToMin_(s) {
+  var p = String(s).split(':');
+  return Number(p[0]) * 60 + Number(p[1] || 0);
+}
+
+function ymd_(d) { return Utilities.formatDate(d, TZ, 'yyyy-MM-dd'); }
+
+/** 日付データでも文字列でも 'yyyy-MM-dd' に揃える。
+ *  ★2026-08-14: 明細の日付は「日付データ」なので String() すると
+ *    'Tue Aug 11 2026 00:00:00 GMT+0900 (Japan Standard Time)' になり、
+ *    ymd_() の '2026-08-11' と永遠に一致しなかった。
+ *    その結果 ①同じ日が毎晩追記される ②見張り役の件数が常に0、が起きていた。
+ *    型・タイムゾーンが何であっても同じキーになるので、原因が何であれ揃う。 */
+function dkey_(v) {
+  if (v === null || v === '') return '';
+  var d = (v instanceof Date) ? v : new Date(v);
+  if (!isNaN(d.getTime())) return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+  return String(v).trim();   // 日付として読めない時は元の文字列（fail-open）
+}
+
+
+/** 明細「本番」タブを、見出し名つきの配列で返す */
+function readMain_() {
+  var sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName('本番');
+  var last = sh.getLastRow();
+  if (last < 2) return { head: [], rows: [] };
+  var all = sh.getRange(1, 1, last, sh.getLastColumn()).getValues();
+  var head = all[0];
+  var rows = [];
+  for (var i = 1; i < all.length; i++) {
+    var o = {};
+    for (var j = 0; j < head.length; j++) o[head[j]] = all[i][j];
+    rows.push(o);
+  }
+  return { head: head, rows: rows };
+}
+
+/** ===== 日次集計（毎晩23時）===== */
+function dailyRollup() {
+  var c = conf_();
+  var ss2 = SpreadsheetApp.openById(c['集計先スプシID'] || SHEET_ID);
+  var dst = ss2.getSheetByName(c['集計先タブ'] || '来店記録03_タブレット');
+  if (!dst) { Logger.log('集計先タブが見つかりません'); return; }
+
+  var data = readMain_().rows;
+  if (!data.length) { Logger.log('本番タブが空です'); return; }
+
+  var agg = {};
+  for (var i = 0; i < data.length; i++) {
+    var r = data[i], k = dkey_(r['日付']);
+    if (!k) continue;
+    if (!agg[k]) agg[k] = { n: 0, first: 0, rep: 0, m: 0, f: 0, yen: 0,
+                            cut: 0, color: 0, perma: 0, kari: 0, lng: 0 };
+    var g = agg[k];
+    g.n++;
+    if (r['来店回数'] === '初めて') g.first++; else if (r['来店回数'] === '2回目〜') g.rep++;
+    if (r['性別'] === '男') g.m++; else if (r['性別'] === '女') g.f++;
+    g.yen += Number(r['金額'] || 0);
+    if (r['区分'] === 'カット') g.cut++;
+    else if (r['区分'] === 'カラー') g.color++;
+    else if (r['区分'] === 'パーマ') g.perma++;
+    if (String(r['丸刈り'] || '').trim()) g.kari++;
+    if (Number(r['ロング加算'] || 0)) g.lng++;
+  }
+
+  var wd = ['日', '月', '火', '水', '木', '金', '土'];
+  var last = dst.getLastRow();
+  var have = {};
+  if (last >= 2) {
+    var ex = dst.getRange(2, 1, last - 1, 1).getValues();
+    for (var x = 0; x < ex.length; x++) have[dkey_(ex[x][0])] = x + 2;
+  }
+
+  // ★2026-08-14 診断用：集計側のキーと既存行のキーを並べて出す。原因確定後に消してよい。
+  Logger.log('have=' + JSON.stringify(Object.keys(have)) + ' / agg=' + JSON.stringify(Object.keys(agg)));
+  var keys = Object.keys(agg).sort();
+  for (var y = 0; y < keys.length; y++) {
+    var ds = keys[y], g2 = agg[ds];
+    var p = ds.split('-');
+    var w = wd[new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay()];
+    var row = [ds, w, g2.n, g2.first, g2.rep, g2.m, g2.f, g2.yen,
+               g2.n ? Math.round(g2.yen / g2.n) : 0,
+               g2.cut, g2.color, g2.perma, g2.kari, g2.lng];
+    if (have[ds]) dst.getRange(have[ds], 1, 1, row.length).setValues([row]);
+    else          dst.appendRow(row);
+  }
+  Logger.log('日次集計 完了: ' + keys.length + '日分');
+}
+
+/** ===== 朝の確認（毎朝8時30分）===== */
+function morningCheck() {
+  dailyRollup();                                  // 念のため、先に集計をやり直す
+  var c = conf_();
+  var target = ymd_(new Date(new Date().getTime() - 24 * 60 * 60 * 1000));
+
+  var n = 0, rows = readMain_().rows;
+  for (var i = 0; i < rows.length; i++) if (dkey_(rows[i]['日付']) === target) n++;
+
+  var dst = SpreadsheetApp.openById(c['集計先スプシID'] || SHEET_ID)
+              .getSheetByName(c['集計先タブ'] || '来店記録03_タブレット');
+  var found = false, last = dst.getLastRow();
+  if (last >= 2) {
+    var ex = dst.getRange(2, 1, last - 1, 1).getValues();
+    for (var j = 0; j < ex.length; j++) if (dkey_(ex[j][0]) === target) found = true;
+  }
+
+  if (n > 0 && !found) {
+    notify_('ライズ：' + target + ' の記録が ' + n + '件ありますが、集計されていません');
+  }
+  Logger.log('朝の確認 ' + target + ': 明細' + n + '件 / 集計' + (found ? 'あり' : 'なし'));
+}
+
+/** ===== タップゼロ通知（1時間ごと）===== */
+function tapZeroCheck() {
+  var c = conf_();
+  if ((c['タップゼロ通知'] || 'ON').toUpperCase() !== 'ON') return;
+
+  var now = new Date();
+  var wd = ['日', '月', '火', '水', '木', '金', '土'][now.getDay()];
+  var mnow = now.getHours() * 60 + now.getMinutes();
+  var open = hhmmToMin_(c['営業開始'] || '9:00');
+  var close = hhmmToMin_(c['最終受付'] || c['営業終了'] || '18:30');
+  if (mnow < open || mnow > close) return;                   // 1. 営業時間外（最終受付まで）
+  if (mnow - open < Number(c['猶予_分'] || 60)) return;       // 2. 開店直後は鳴らさない
+
+  var today = ymd_(now);
+  var rows = readMain_().rows, n = 0, lastMin = null;
+  for (var i = 0; i < rows.length; i++) {
+    if (dkey_(rows[i]['日付']) !== today) continue;
+    n++;
+    var t = String(rows[i]['受信日時(サーバ)'] || '');        // 'yyyy-MM-dd HH:mm:ss'
+    var hm = t.split(' ')[1];
+    if (hm) {
+      var m = hhmmToMin_(hm.substring(0, 5));
+      if (lastMin === null || m > lastMin) lastMin = m;
+    }
+  }
+
+  // 3. 定休日の扱い（★2026-08-10 大神案）
+  //    定休日でも開ける日がある（6/15の月曜に4人）。曜日だけで切ると、
+  //    その日の入力忘れを誰も検知できなくなる。
+  //    「定休日 かつ 今日まだ0件」なら休みとみなして黙る。
+  //    1件でもタップされていれば、営業中とみなして監視する。
+  var closed = String(c['定休日'] || '').split(',').map(function (s) { return s.trim(); });
+  if (closed.indexOf(wd) >= 0 && n === 0) return;
+
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('TAPZERO_LAST') === today) return;   // 4. 本日通知済み
+
+  var th = Number(c['しきい値_分'] || 240);
+  var since = (lastMin === null) ? (mnow - open) : (mnow - lastMin);
+  if (since < th) return;                                    // 5. まだ間が空いていない
+
+  var from = (lastMin === null) ? (c['営業開始'] || '8:30')
+           : (('0' + Math.floor(lastMin / 60)).slice(-2) + ':' + ('0' + (lastMin % 60)).slice(-2));
+  notify_('ライズ：本日 ' + from + ' から入力がありません（本日の記録 ' + n + '件）');
+  props.setProperty('TAPZERO_LAST', today);
+}
+
+/** Discordへ通知（URLはスクリプトプロパティ NOTIFY_WEBHOOK に入れてください）*/
+function notify_(text) {
+  var url = PropertiesService.getScriptProperties().getProperty('NOTIFY_WEBHOOK');
+  Logger.log('通知: ' + text);
+  if (!url) return;
+  try {
+    UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json',
+      payload: JSON.stringify({ content: text }), muteHttpExceptions: true });
+  } catch (e) { Logger.log('通知に失敗: ' + e); }
+}
+
+/** ===== 時限トリガーの登録（1回だけ実行してください）===== */
+function setupTriggers() {
+  var all = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < all.length; i++) ScriptApp.deleteTrigger(all[i]);   // 二重登録を防ぐ
+  ScriptApp.newTrigger('dailyRollup').timeBased().atHour(23).everyDays(1).create();
+  ScriptApp.newTrigger('morningCheck').timeBased().atHour(8).everyDays(1).create();
+  ScriptApp.newTrigger('tapZeroCheck').timeBased().everyHours(1).create();
+  Logger.log('トリガーを3つ登録しました（23時・8時台・1時間ごと）');
+}

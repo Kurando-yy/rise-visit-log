@@ -27,6 +27,33 @@
   // 現在の来店者の選択状態（確定後にリセットする）
   var state = {};
 
+  // ★2026-09-14（司令ご依頼）: 1人のお客様が選んだメニューを積む場所。
+  //   「他のメニューを追加」を押すと、今の選択をここへ移して画面3へ戻る。
+  //   ★確定時は cart + いま選択中のもの をまとめて1回の来店として送る。
+  //   ★ご来店（初めて/2回目）と性別は ★同じお客様なので聞き直さない。
+  var cart = [];
+
+  /** いまの state から、メニュー1件ぶんの確定した選択を切り出す */
+  function snapshotSelection() {
+    return {
+      visitType: state.visitType,
+      gender: state.gender,
+      section: state.section,
+      item: state.item,
+      kariApplied: state.kariApplied,
+      longApplied: state.longApplied,
+      longAddPrice: state.longAddPrice,
+      price: state.price,
+      isMinimum: state.isMinimum
+    };
+  }
+
+  /** 画面5に出す合計金額。cart と 選択中のものを足す */
+  function cartTotal() {
+    var sum = cart.reduce(function (a, s) { return a + (s.price || 0); }, 0);
+    return sum + (state.price || 0);
+  }
+
   function resetState() {
     state = {
       visitType: null, // "first" | "repeat"
@@ -141,6 +168,7 @@
 
   function goScreen1() {
     resetState();
+    cart = [];                 // ★次のお客様へ移るので、積んだメニューも捨てる
     showOnly("s1");
     refreshTodayBar();
   }
@@ -304,18 +332,61 @@
   }
 
   function renderScreen5() {
-    document.getElementById("screen-5-price").textContent = state.price.toLocaleString("ja-JP") + " 円です";
+    // ★2つ以上選ばれている時だけ内訳を出す。1つの時は今までの見た目のまま
+    //   （毎回リストが出ると、★1メニューのお客様の操作感が変わってしまう）。
+    var list = document.getElementById("screen-5-items");
+    var picked = cart.concat([snapshotSelection()]);
+    if (picked.length > 1) {
+      list.innerHTML = "";
+      picked.forEach(function (s) {
+        var li = document.createElement("li");
+        li.className = "picked-item";
+        li.textContent = s.item.name + "　" + (s.price || 0).toLocaleString("ja-JP") + " 円";
+        list.appendChild(li);
+      });
+      list.hidden = false;
+    } else {
+      list.hidden = true;
+      list.innerHTML = "";
+    }
+    document.getElementById("screen-5-price").textContent =
+      cartTotal().toLocaleString("ja-JP") + " 円です";
     showOnly("s5");
+  }
+
+  /**
+   * 「他のメニューを追加」。いまの選択を積んで、画面3（ご希望）へ戻る。
+   * ★ご来店・性別は保持する（同じお客様なので聞き直さない）。
+   * ★積んだ分は cart に入るので、画面5の合計と確定時の送信に必ず含まれる。
+   */
+  function addAnotherMenu() {
+    cart.push(snapshotSelection());
+    // 1メニューぶんの選択だけを初期化する（visitType / gender は残す）
+    state.section = null;
+    state.item = null;
+    state.kariChoice = null;
+    state.longChoice = null;
+    state.kariApplied = false;
+    state.longApplied = false;
+    state.longAddPrice = 0;
+    state.price = null;
+    state.isMinimum = false;
+    goScreen3();
   }
 
   function confirmAndSubmit() {
     var confirmBtn = document.getElementById("btn-confirm");
     confirmBtn.disabled = true;
 
-    var record = SUBMIT.buildRecord(state);
+    // ★2026-09-14: 1回の来店ぶん（cart + 選択中）をまとめて組み立てる。
+    //   同じ visit_id が入るので、受け口側は ★何行あっても1人として数えられる。
+    var records = SUBMIT.buildRecords(state, cart.concat([snapshotSelection()]));
     // ★送信の完了を待ってから画面1へ戻す。待たずに戻すと、上部の帯が
     //   「1件前」の数字を取りに行き、押した直後だけ数が合わないように見える。
-    var sent = SUBMIT.submitRecord(record).catch(function () { /* 画面は止めない */ });
+    //   ★1件でも失敗したら残りも送る（1つの失敗で他を巻き込まない）。
+    var sent = Promise.all(records.map(function (r) {
+      return SUBMIT.submitRecord(r).catch(function () { /* 画面は止めない */ });
+    }));
     SUBMIT.retryPending(); // ついでに未送信キューの再送も試みる
 
     var waited = new Promise(function (r) { setTimeout(r, FLAGS.AUTO_RETURN_MS); });
@@ -377,6 +448,7 @@
   });
 
   document.getElementById("btn-confirm").addEventListener("click", confirmAndSubmit);
+  document.getElementById("btn-add-menu").addEventListener("click", addAnotherMenu);
 
   // 本日の一覧（開く／閉じる）
   document.getElementById("btn-today-list").addEventListener("click", openTodayList);

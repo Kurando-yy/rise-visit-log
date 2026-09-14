@@ -83,6 +83,16 @@
    *   既定を test にしてあるのは、設定し忘れた状態で本番タブを汚さないため。
    */
   function getMode() {
+    // ★2026-09-14（司令ご依頼）: URL に ?mode=test を付けたら ★必ず試験タブへ入れる。
+    //   それまで試験に落とす手段が ui.flags.js の書き換えしか無く、
+    //   ★試すと本番の端末まで試験モードになった（＝安全に試せなかった）。
+    //   ★live へ上げる向きの指定は ★受け付けない。URL で本番に書けてしまうと、
+    //   リンクを踏んだだけで本番を汚せることになる。
+    try {
+      if (root.location && /(^|[?&])mode=test([&#]|$)/.test(String(root.location.search))) {
+        return "test";
+      }
+    } catch (e) { /* fallthrough */ }
     try {
       var f = root.RISE_UI_FLAGS;
       if (f && f.SUBMIT_MODE === "live") return "live";
@@ -308,6 +318,32 @@
       Math.floor(Math.random() * 1e12).toString(36);
   }
 
+  /**
+   * ★1回の来店で複数メニューを選べるようにするための組み立て（2026-09-14 司令ご依頼）。
+   *
+   * ★症状: カットとカラーを両方選べず、分けて入れると ★2人分に数えられていた
+   *        （受け口側が「来店客数 = 行数」で数えているため。gas/Code.gs:92）。
+   * ★方針(案B): 明細の形は変えず、★同じ来店の行に同じ visit_id を持たせる。
+   *        集計側は「行数」ではなく「visit_id の種類数」を数える。
+   *        → 明細1行=1メニュー のままなので、売上・メニュー別集計は今までどおり動く。
+   *
+   * ★受け口が visit_id 列を持つまでは、送っても ★黙って捨てられる（拒否はされない。
+   *   検証済み: gas/Code_production.gs:86-87 が見るのは record_id と menu_id だけ）。
+   *   ★そのため「画面だけ先に本番へ出す」ことはしない。出すと ★2人と数えられる行が
+   *   実際に作れるようになり、★いまより悪くなる。マリアの列追加と同時に上げる。
+   */
+  function buildRecords(state, cart) {
+    var visitId = newRecordId();
+    var list = (cart && cart.length) ? cart : [state];
+    return list.map(function (sel, i) {
+      var r = buildRecord(sel);
+      r.visit_id = visitId;        // ★同じ来店＝同じ値
+      r.visit_seq = i + 1;         // 何番目のメニューか（1始まり）
+      r.visit_size = list.length;  // その来店で選ばれたメニューの数
+      return r;
+    });
+  }
+
   function buildRecord(state) {
     var now = new Date();
     return {
@@ -354,6 +390,7 @@
     fetchTodayList: fetchTodayList,
     pendingCount: pendingCount,
     buildRecord: buildRecord,
+    buildRecords: buildRecords,
     toJstIsoString: toJstIsoString,
     _loadQueue: loadQueue, // テスト用
     listRejected: function () {

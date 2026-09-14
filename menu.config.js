@@ -92,7 +92,7 @@
         sections: {
           CUT: [
             { id: "woman-cut-cut", name: "カット", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "woman-cut-cutshampoo", name: "カットとシャンプー", price: 1950, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-cutshampoo", name: "カットとシャンプー", price: 2600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "woman-cut-shampoo", name: "シャンプー", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "woman-cut-maegami", name: "前髪カット", price: 600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "woman-cut-kaosori", name: "お顔剃り", price: 2050, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }

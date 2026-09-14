@@ -21,7 +21,20 @@
     //   "test" → 試験タブ ／ "live" → 本番タブ
     //   2026-08-10 13:2x 端末→受け口→シートの疎通確認が通ったため live へ切替。
     //   戻す時は "test" に変え、index.html の ?v= も必ず上げること。
-    SUBMIT_MODE: "live"
+    SUBMIT_MODE: "live",
+
+    // ★「他のメニューを追加」を出すか（2026-09-14）。
+    //   ★false の間は ★今までどおり1人1メニュー。ボタンは出ない。
+    //
+    //   ★なぜ既定を false にしたか:
+    //     画面を上げた直後、★「visit_id を読む側」が ★実運用では居ないと判明した。
+    //     毎晩23時に実際に走るのは ★GAS の dailyRollup で、これは ★行数で客数を数える
+    //     （gas/Code_production.gs:333 `g.n++` ／ 初めて・2回目〜・男・女 も同じ）。
+    //     マリアが直した Python 版（rise_daily_rollup.py）は ★停止済みのジョブだった。
+    //   → ★このまま使えると、★1人が2メニュー選んだ日だけ ★客数が水増しされる。
+    //   ★GAS の dailyRollup が visit_id で数えるようになったら true にする。
+    //     （★true にするのはそれだけ。画面のコードは触らない）
+    MULTI_MENU_ENABLED: false
   };
 
   if (typeof module === "object" && module.exports) {

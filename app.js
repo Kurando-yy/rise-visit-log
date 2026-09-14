@@ -334,6 +334,10 @@
   function renderScreen5() {
     // ★2つ以上選ばれている時だけ内訳を出す。1つの時は今までの見た目のまま
     //   （毎回リストが出ると、★1メニューのお客様の操作感が変わってしまう）。
+    // ★受け口(GAS)が visit_id で数えるようになるまで、ボタンは出さない。
+    //   出したまま使われると、★1人が2メニュー選んだ日だけ客数が水増しされる。
+    document.getElementById("btn-add-menu").hidden = !FLAGS.MULTI_MENU_ENABLED;
+
     var list = document.getElementById("screen-5-items");
     var picked = cart.concat([snapshotSelection()]);
     if (picked.length > 1) {

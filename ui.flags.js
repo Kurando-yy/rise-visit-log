@@ -34,7 +34,11 @@
     //   → ★このまま使えると、★1人が2メニュー選んだ日だけ ★客数が水増しされる。
     //   ★GAS の dailyRollup が visit_id で数えるようになったら true にする。
     //     （★true にするのはそれだけ。画面のコードは触らない）
-    MULTI_MENU_ENABLED: false
+    //   ★2026-09-14 02:30 true へ。受け口側の確認が取れたため:
+    //     司令がデプロイ → 実機で ?mode=test を1タップ → 試験タブ行2に
+    //     visit_id=8bc3404c… / visit_seq=1 / visit_size=1 が入ったのをマリアが確認
+    //     （Sheets API で 試験!A1:P100 を直接読んで16列とも突合）
+    MULTI_MENU_ENABLED: true
   };
 
   if (typeof module === "object" && module.exports) {

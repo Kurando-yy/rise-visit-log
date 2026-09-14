@@ -340,3 +340,13 @@ html, body {
   font-size: 0.8em;
   color: #a3341f;
 }
+
+/* ★2026-09-14 確定直後のお礼画面。
+   「戻るまでが長い」の正体は ★3秒間なにも変わらないことだった（司令ご指摘）。
+   押した瞬間にここへ切り替えて、手ごたえを先に返す。 */
+.thanks-mark {
+  font-size: clamp(4rem, 14vw, 9rem);
+  line-height: 1;
+  color: var(--color-primary-dark);
+  margin-bottom: var(--gap);
+}

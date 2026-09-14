@@ -19,7 +19,8 @@
     s4: document.getElementById("screen-4"),
     s4b: document.getElementById("screen-4b"),
     s4c: document.getElementById("screen-4c"),
-    s5: document.getElementById("screen-5")
+    s5: document.getElementById("screen-5"),
+    thanks: document.getElementById("screen-thanks")
   };
 
   var SECTION_LABEL = { CUT: "カット", COLOR: "カラー", PERMA: "パーマ" };
@@ -388,16 +389,31 @@
     // ★送信の完了を待ってから画面1へ戻す。待たずに戻すと、上部の帯が
     //   「1件前」の数字を取りに行き、押した直後だけ数が合わないように見える。
     //   ★1件でも失敗したら残りも送る（1つの失敗で他を巻き込まない）。
+    //   ★2026-09-14: この「待つ」は下で ★待たない形に変えた（理由は下のコメント）。
+    showOnly("thanks");          // ★押した手ごたえを ★先に返す
     var sent = Promise.all(records.map(function (r) {
       return SUBMIT.submitRecord(r).catch(function () { /* 画面は止めない */ });
     }));
     SUBMIT.retryPending(); // ついでに未送信キューの再送も試みる
 
-    var waited = new Promise(function (r) { setTimeout(r, FLAGS.AUTO_RETURN_MS); });
-    Promise.all([sent, waited]).then(function () {
+    // ★★2026-09-14（司令ご依頼「確定してからトップに戻るまでが異様に長い」）
+    //   実測: 確定→トップ ★3.3秒 ／ うち ★3.0秒 が固定待ち ／ 通信は 1.1〜1.4秒
+    //   ＝ ★待ちのほうが通信より長い。しかも ★その間 画面が何も変わらないので、
+    //     実際の3秒より長く感じる（★押した手ごたえが無い）。
+    //   → ① ★押した瞬間に「ありがとうございました」を出す（上の showOnly("thanks")）
+    //     ② ★送信の完了を待たずに戻る（送信は裏で続く）
+    //     ③ ★送信が終わってから 帯を取り直す
+    //        旧実装が送信を待っていたのは、★帯が「1件前」の数字を出さないため。
+    //        ★待つ代わりに あとで取り直せば、★同じ目的を 待たずに満たせる。
+    //   ★取りこぼしは起きない: 失敗分は submitRecord がキューへ積み、次回 retryPending が送る。
+    sent.then(function () {
+      if (screens.s1.classList.contains("active")) refreshTodayBar();
+    });
+
+    setTimeout(function () {
       confirmBtn.disabled = false;
       goScreen1();
-    });
+    }, FLAGS.AUTO_RETURN_MS);
   }
 
   // ---- イベント登録 ----

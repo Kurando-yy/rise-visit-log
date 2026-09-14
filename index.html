@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>RISE南関町 来店記録</title>
-<link rel="stylesheet" href="style.css?v=20260914d">
+<link rel="stylesheet" href="style.css?v=20260914e">
 </head>
 <body>
 
@@ -96,6 +96,14 @@
   <div class="hint">確定後、自動的に最初の画面へ戻ります</div>
 </section>
 
+<!-- 確定直後のお礼（★2026-09-14 司令ご依頼「戻るまでが異様に長い」）
+     ★3秒間なにも変わらないのが「長い」の正体だった（実測 確定→トップ 3.3秒／
+       うち3.0秒は固定待ち・通信は1.1〜1.4秒）。★押した手ごたえを先に出す。 -->
+<section id="screen-thanks" class="screen">
+  <div class="thanks-mark">✓</div>
+  <div class="screen-title">ありがとうございました</div>
+</section>
+
 <!-- 本日の一覧（ダイアログ）。★入力画面とは独立。開いている間は入力操作をしない -->
 <div id="list-overlay" class="list-overlay" hidden>
   <div class="list-panel" role="dialog" aria-modal="true" aria-label="本日の一覧">
@@ -107,10 +115,10 @@
   </div>
 </div>
 
-<script src="menu.config.js?v=20260914d"></script>
-<script src="menu.logic.js?v=20260914d"></script>
-<script src="ui.flags.js?v=20260914d"></script>
-<script src="submit.js?v=20260914d"></script>
-<script src="app.js?v=20260914d"></script>
+<script src="menu.config.js?v=20260914e"></script>
+<script src="menu.logic.js?v=20260914e"></script>
+<script src="ui.flags.js?v=20260914e"></script>
+<script src="submit.js?v=20260914e"></script>
+<script src="app.js?v=20260914e"></script>
 </body>
 </html>

@@ -4,7 +4,367 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>RISE南関町 来店記録</title>
-<link rel="stylesheet" href="style.css?v=20260914e">
+<!-- ★2026-09-15 style.css を ★ここへ埋め込みました（司令承認）。
+     ★理由：★CSSの取得が1回失敗すると .screen{display:none} が効かず、
+     ★全画面が同時に出て ★どこでも押せる状態になり ★誤入力が起こりうるため。
+     ★元の行： <link rel="stylesheet" href="style.css?v=20260914e">
+     ★style.css は ★残してあります（★編集はそちらで行い、★このスクリプトで貼り直す）。
+     ★貼り直し： scratchpad/inline_css.py -->
+<style>
+/*
+ * RISE南関町 来店記録タブレット — スタイル
+ *
+ * ★ボタン最小タップ寸法（根拠）
+ * Apple Human Interface Guidelines の推奨最小タップ領域は 44x44pt。
+ * 本画面は「高齢のお客様が自分でタップする」（司令要件）ため、その目安の
+ * 約3倍以上を確保する: 最小 高さ140px × 幅220px（--tap-min-height / --tap-min-width）。
+ * 画面4（最大5択）でも auto-fit グリッドでこの最小値を割らずに
+ * 1024x768 / 820x1180 の両方に収まることを確認済み（検証結果は報告参照）。
+ */
+
+:root {
+  --tap-min-height: 140px;
+  --tap-min-width: 220px;
+  --gap: 24px;
+  --color-bg: #fdfaf5;
+  --color-primary: #2f6f4f;
+  --color-primary-dark: #1f4d36;
+  --color-text: #222;
+  --color-border: #cfcfcf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "YuGothic", sans-serif;
+  /* iPadでのピンチズーム・ダブルタップズームによる誤操作を避ける */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  text-align: center;
+}
+
+.screen.active {
+  display: flex;
+}
+
+.screen-title {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  margin-bottom: var(--gap);
+  font-weight: 700;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--tap-min-width), 1fr));
+  gap: var(--gap);
+  width: 100%;
+  max-width: 900px;
+}
+
+.tap-btn {
+  min-height: var(--tap-min-height);
+  min-width: var(--tap-min-width);
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 16px;
+  padding: 16px 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--color-primary-dark);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+
+.tap-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--color-primary-dark);
+}
+
+.tap-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menu-btn {
+  background: #3a7d5c;
+}
+
+.price-display {
+  font-size: clamp(3rem, 10vw, 6rem);
+  font-weight: 900;
+  margin: var(--gap) 0 calc(var(--gap) * 1.5) 0;
+  color: var(--color-primary-dark);
+}
+
+.confirm-btn {
+  min-height: calc(var(--tap-min-height) * 1.2);
+  min-width: 320px;
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+}
+
+/* ★2026-09-14: 「他のメニューを追加」。
+   ★確定ボタンより ★目立たせない（押し間違えると1人が2人に分かれてしまうため、
+   　迷った時は「これで確定」に手が向くようにする）。 */
+.add-btn {
+  min-height: var(--tap-min-height);
+  min-width: 320px;
+  font-size: clamp(1.2rem, 2.8vw, 1.8rem);
+  background: #fff;
+  color: var(--color-primary-dark);
+  border: 3px solid var(--color-primary-dark);
+  margin-bottom: var(--gap);
+}
+
+/* 選んだメニューの内訳（2つ以上選ばれた時だけ出る） */
+.picked-list {
+  list-style: none;
+  margin: 0 0 var(--gap);
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+
+.picked-item {
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  padding: 4px 0;
+  color: var(--color-primary-dark);
+}
+
+.hint {
+  margin-top: var(--gap);
+  color: #777;
+  font-size: 1rem;
+}
+
+/*
+ * 画面1上部の帯（最終入力 / 本日の客数 / 本日の売上）
+ * ★お客様もこの画面を見る可能性があるため、控えめな見た目にしてある
+ *   （タップ対象と紛れないよう、ボタン色は使わない・押せる見た目にしない）。
+ */
+#screen-1 {
+  position: relative;
+}
+
+/* ★文字の大きさ・太さは「ご来店は？」（.screen-title）と同じにする（司令 2026-08-16）。
+   小さくて読めない、という実機での指摘に合わせた。 */
+.today-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 4px 40px;
+  padding: 18px 20px;
+  background: #f2ede4;
+  border-bottom: 1px solid var(--color-border);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #555;
+  pointer-events: none; /* 誤タップで操作を邪魔しない */
+}
+
+.today-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* 見出し（最終入力／本日 入力済み）は、数字より一段だけ小さくする。
+   同じ大きさだと、どれが数字か一目で分からなくなるため。 */
+.today-label {
+  font-size: 0.6em;
+  font-weight: 700;
+  color: #888;
+}
+
+.today-value {
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 取得できなかった時・未送信がある時。★数字を推測して出さないための表示 */
+.today-alert {
+  flex-basis: 100%;
+  text-align: center;
+  margin-top: 2px;
+  font-size: 0.75em;   /* 帯が伸びすぎないよう、数字より少しだけ小さく */
+  font-weight: 700;
+  color: #a3341f;
+}
+
+.today-bar.is-closed .today-value {
+  color: #888;
+}
+
+/*
+ * 本日の一覧（司令 2026-08-16）
+ * ★お客様の目にも入る画面なので、来店用のボタン（緑・特大）とは
+ *   はっきり別物に見せる。押し間違いで一覧が開くのを避ける。
+ */
+.list-btn {
+  position: absolute;
+  top: 96px;      /* 帯の下 */
+  right: 20px;
+  min-height: 64px;
+  padding: 12px 24px;
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  background: #fff;
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.list-btn:active {
+  background: #eef4f0;
+}
+
+.list-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10;
+}
+
+.list-overlay[hidden] {
+  display: none;
+}
+
+.list-panel {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.list-title {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 700;
+}
+
+.list-close {
+  min-width: 64px;
+  min-height: 64px;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #444;
+  background: #f0ece5;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.list-body {
+  overflow: auto;
+  padding: 8px 20px 20px;
+  text-align: left;
+}
+
+.list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.list-table th,
+.list-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e6e1d8;
+  white-space: nowrap;
+}
+
+.list-table th {
+  font-size: 0.8em;
+  color: #888;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+
+.list-table td.num {
+  text-align: right;
+}
+
+.list-total {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid var(--color-border);
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+  font-weight: 700;
+  text-align: right;
+  color: var(--color-primary-dark);
+}
+
+.list-msg {
+  padding: 24px 0;
+  font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+  font-weight: 700;
+  color: #a3341f;
+  text-align: center;
+}
+
+/* 丸刈り・ロング加算の注記。金額が料金表と違って見える理由を、その行に添える */
+.list-note {
+  margin-left: 6px;
+  font-size: 0.8em;
+  color: #a3341f;
+}
+
+/* ★2026-09-14 確定直後のお礼画面。
+   「戻るまでが長い」の正体は ★3秒間なにも変わらないことだった（司令ご指摘）。
+   押した瞬間にここへ切り替えて、手ごたえを先に返す。 */
+.thanks-mark {
+  font-size: clamp(4rem, 14vw, 9rem);
+  line-height: 1;
+  color: var(--color-primary-dark);
+  margin-bottom: var(--gap);
+}
+
+</style>
 </head>
 <body>
 

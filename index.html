@@ -475,10 +475,1197 @@ html, body {
   </div>
 </div>
 
-<script src="menu.config.js?v=20260914e"></script>
-<script src="menu.logic.js?v=20260914e"></script>
-<script src="ui.flags.js?v=20260914e"></script>
-<script src="submit.js?v=20260914e"></script>
-<script src="app.js?v=20260914e"></script>
+<!-- ★2026-09-15 下の5本を ★ここへ埋め込みました（司令承認）。
+     ★理由：★1本でも取得に失敗すると、★3本は『画面は正常に見えるが中身が無い』、
+     ★2本は『真っ白』になる。★外から読むのをやめれば ★原因によらず起きない。
+     ★元ファイルは残置。★編集はそちらで行い scratchpad/inline_js.py で貼り直す。
+     ★読み込み順は ★元のまま（依存があるため変えない）： menu.config.js → menu.logic.js → ui.flags.js → submit.js → app.js
+-->
+<!-- ▼ menu.config.js  sha256:c23148f29b32602b -->
+<script>
+/*
+ * RISE南関町 来店記録タブレット — メニュー・料金 定義ファイル
+ *
+ * ★このファイルが唯一の料金マスタです。10/1 の値段改定時は、このファイル内の
+ *   price / kariPrice の数値だけを書き換えてください。画面(HTML/CSS/JS)は一切
+ *   触る必要がありません。
+ *
+ * 有効期間: 2026-08-09 〜 2026-09-30（現行価格）
+ * ★2026-10-01 から値段改定の予定（2026-08-09時点で改定内容は未定）。
+ *   改定が来たら effective.from / effective.to と各 price を書き換えること。
+ *
+ * 出典: 20260808_来店記録タブレット化_計画_大神.md §実物のメニュー表
+ *       （2026-08-09 司令が現地で撮影・受領 msg 1535914594772590612）
+ *
+ * ★2026-08-10 司令が男性CUTの表示名を書き換え（msg 1536186655256354898・画像で指定）。
+ *   店頭メニュー表の名称は「調髪」等のままなので、officialName に元の名称を残してある。
+ *   name(画面表示) と officialName(店頭メニュー表) は別物として扱うこと。
+ *   ★この書き換えで「調髪＝カット＋シャンプー＋顔剃り」「子供調髪＝子供カット＋シャンプー
+ *     （顔剃りは含まない）」が確定した。旧5区分への寄せ表はこれに従う。
+ *
+ * ★2026-08-10 「ロング増し」を単独メニューから加算方式へ変更（司令指示 msg 1536189024287334431）。
+ *   司令の言葉:「女性→カット→ロング増しだけど、これはパーマとカラーにかかってくる料金だね。
+ *   カットは関係ない」
+ *   旧実装は woman-cut-longmashi（ロング増し）と woman-perma-permalongmashi（パーマロング増し）
+ *   を「単独メニュー」として一覧に並べており、お客様がそれだけをタップして600円で確定できて
+ *   しまう誤りがあった。この2項目を削除し、代わりに女性 COLOR 全4項目・PERMA 全2項目
+ *   （フェイスラインパーマ／パーマ）に加算フラグ hasLong / longAddPrice を付与する方式へ変更。
+ *   ★店頭メニュー表には「ロング増し」「パーマロング増し」が今も別項目として印刷されているが、
+ *   実態はどちらも同じ600円の加算であり、画面上は各メニュー選択後の画面4c（髪の長さは？）で
+ *   「長い（＋600円）」を選ぶことで同じ600円が加算される。男性・女性のカット系（CUT区分）
+ *   には一切付けない（司令明示「カットは関係ない」）。
+ *
+ * データ構造:
+ *   id           : 一意キー（gas送信・検証スクリプトで使用）
+ *   name         : 画面に表示するメニュー名（お客様が読む文言）
+ *   officialName : 店頭メニュー表の名称。name と異なる項目にのみ付与（集計・突合用）
+ *   price        : 円（丸刈り価格を持つ項目は「通常」側の価格。ロング加算は含まない基準額）
+ *   hasKari      : true の場合、選択後に画面4b（ふつう／丸刈り）を挟む
+ *   kariPrice    : 丸刈り選択時の価格（hasKari が false の項目は null）
+ *   hasLong      : true の場合、選択後に画面4c（ふつう／長い）を挟み、「長い」選択時に
+ *                  longAddPrice を price に加算する
+ *   longAddPrice : 「長い」選択時に price へ加算する金額（hasLong が false の項目は null）
+ *   isMinimum    : true の場合、表記が「〜」付きで下限値を記録していることを示す
+ *                  （フェイスラインパーマ／パーマ(女性) の2項目のみ true。ロング加算後も維持）
+ *
+ * 丸刈り価格を持つのは MEN'S CUT の3項目のみ（店頭表記→画面表示）:
+ *   カットシャンプー   → カットとシャンプー(1,950 / 丸刈り1,700)
+ *   カットシェービング → カットと顔剃り(1,950 / 丸刈り1,700)
+ *   調髪             → カットとシャンプーと顔剃り(2,200 / 丸刈り1,950)
+ *
+ * ★2026-08-11 女性「カットとシャンプー」1,950円を追加（司令確認 msg 1536534528359800882）。
+ *   屋外看板に載っているのにタブレットで押せず、別々に押すと 1300+1300=2600円 で
+ *   看板の1,950円と合わない状態だった。店内メニュー表には無い項目（掲示物が2種類あり内容が違う）。
+ *   ★女性に「カット＋顔剃り」のセットは無い（司令「女性は髭が生えないのが基本」）。
+ *   お顔剃り2,050円は単体メニューとして別に存在する。
+ *
+ * ロング加算(hasLong)を持つのは WOMAN'S COLOR 全4項目・WOMAN'S PERMA 全2項目のみ:
+ *   白髪ぼかし／白髪染め／おしゃれ染め／マニキュア（女性COLOR）
+ *   フェイスラインパーマ／パーマ（女性PERMA）
+ *   いずれも longAddPrice は 600（店頭表記「ロング増し」「パーマロング増し」と同額）。
+ */
+(function (root) {
+  var RISE_MENU_CONFIG = {
+    effective: {
+      from: "2026-08-09",
+      to: "2026-09-30",
+      note: "10/1 改定予定。改定内容は2026-08-09時点で未定。改定時は本ファイルの price / kariPrice のみ書き換える。"
+    },
+    genders: {
+      MEN: {
+        label: "男性",
+        sections: {
+          CUT: [
+            { id: "men-cut-cut", name: "カット", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-cutshampoo", name: "カットとシャンプー", officialName: "カットシャンプー", price: 1950, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-cutshaving", name: "カットと顔剃り", officialName: "カットシェービング", price: 1950, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-chouhatsu", name: "カットとシャンプーと顔剃り", officialName: "調髪", price: 2200, hasKari: true, kariPrice: 1950, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-kids", name: "子供カットとシャンプー（0〜15）", officialName: "子供調髪（0〜15）", price: 1850, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+          ],
+          COLOR: [
+            { id: "men-color-shiragabokashi", name: "白髪ぼかし", price: 1950, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-color-shiragazome", name: "白髪染め", price: 3250, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-color-color", name: "カラー", price: 3900, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+          ],
+          PERMA: [
+            { id: "men-perma-perma", name: "パーマ", price: 6500, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+          ]
+        }
+      },
+      WOMAN: {
+        label: "女性",
+        sections: {
+          CUT: [
+            { id: "woman-cut-cut", name: "カット", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-cutshampoo", name: "カットとシャンプー", price: 2600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-shampoo", name: "シャンプー", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-maegami", name: "前髪カット", price: 600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-kaosori", name: "お顔剃り", price: 2050, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+          ],
+          COLOR: [
+            { id: "woman-color-shiragabokashi", name: "白髪ぼかし", price: 1950, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
+            { id: "woman-color-shiragazome", name: "白髪染め", price: 4550, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
+            { id: "woman-color-oshare", name: "おしゃれ染め", price: 5200, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
+            { id: "woman-color-manicure", name: "マニキュア", price: 5200, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false }
+          ],
+          PERMA: [
+            { id: "woman-perma-faceline", name: "フェイスラインパーマ", price: 5200, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: true },
+            { id: "woman-perma-perma", name: "パーマ", price: 6500, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: true }
+          ]
+        }
+      }
+    }
+  };
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = RISE_MENU_CONFIG;
+  } else {
+    root.RISE_MENU_CONFIG = RISE_MENU_CONFIG;
+  }
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<!-- ▼ menu.logic.js  sha256:4506028b453f7658 -->
+<script>
+/*
+ * RISE南関町 来店記録タブレット — 画面遷移の純粋ロジック
+ *
+ * DOM に依存しない純粋関数のみを置く。ブラウザ（<script>読み込み）と
+ * Node（検証スクリプト scripts/verify_reachability.js）の両方から同じ関数を
+ * 呼び出すことで、「実装の到達可否」と「検証結果」が食い違わないようにする。
+ */
+(function (root) {
+  /**
+   * 性別×区分に該当するメニュー項目の配列を返す（= 画面4に並ぶ候補、または1件のみの場合の対象）
+   */
+  function getItemsFor(config, genderKey, sectionKey) {
+    var genderDef = config.genders[genderKey];
+    if (!genderDef) throw new Error("unknown gender: " + genderKey);
+    var items = genderDef.sections[sectionKey];
+    if (!items) throw new Error("unknown section: " + sectionKey + " for gender " + genderKey);
+    return items;
+  }
+
+  /**
+   * 画面3(区分選択)完了後、画面4を表示するかどうかを判定する。
+   * uiFlags.SKIP_SCREEN4_WHEN_SINGLE_ITEM が true かつ該当項目が1件のみの場合は false（スキップ）。
+   */
+  function shouldShowScreen4(config, uiFlags, genderKey, sectionKey) {
+    var items = getItemsFor(config, genderKey, sectionKey);
+    if (items.length === 1 && uiFlags.SKIP_SCREEN4_WHEN_SINGLE_ITEM) return false;
+    return true;
+  }
+
+  /**
+   * 画面4b（ふつう／丸刈り）を表示するかどうか
+   */
+  function shouldShowScreen4b(item) {
+    return !!item.hasKari;
+  }
+
+  /**
+   * 画面4c（ふつう／長い＝ロング加算）を表示するかどうか
+   * ★2026-08-10 追加。hasKari(丸刈り)対象＝男性CUTのみ、hasLong(ロング加算)対象＝
+   *   女性COLOR/PERMAのみで互いに排他だが、念のため両方の判定を独立して行う
+   *   （画面4b→4c の順で判定・表示する。app.js 側の遷移順もこれに合わせる）。
+   */
+  function shouldShowScreen4c(item) {
+    return !!item.hasLong;
+  }
+
+  /**
+   * 選択結果から最終金額と「下限フラグ」を確定する。
+   * kariChoice: "normal" | "kari" | null（hasKari が false の項目では null）
+   * longChoice: "normal" | "long" | null（hasLong が false の項目では null）
+   * ロング加算は price に対する加算方式（単独メニューではない）。
+   */
+  function resolvePrice(item, kariChoice, longChoice) {
+    var price = item.price;
+    var kariApplied = false;
+    if (item.hasKari && kariChoice === "kari") {
+      price = item.kariPrice;
+      kariApplied = true;
+    }
+    var longApplied = false;
+    if (item.hasLong && longChoice === "long") {
+      price = price + item.longAddPrice;
+      longApplied = true;
+    }
+    return { price: price, isMinimum: !!item.isMinimum, kariApplied: kariApplied, longApplied: longApplied };
+  }
+
+  /**
+   * 1メニュー項目が、実際にどの画面経路で到達するかを文字列で表す（検証・ログ用）
+   */
+  function describePath(config, uiFlags, genderKey, sectionKey, item) {
+    var genderDef = config.genders[genderKey];
+    var showScreen4 = shouldShowScreen4(config, uiFlags, genderKey, sectionKey);
+    var parts = [
+      "画面1(来店回数)",
+      "画面2(" + genderDef.label + ")",
+      "画面3(" + sectionKey + ")",
+      showScreen4 ? "画面4(" + item.name + "選択)" : "画面4スキップ(1択自動確定)"
+    ];
+    if (shouldShowScreen4b(item)) parts.push("画面4b(ふつう/丸刈り)");
+    if (shouldShowScreen4c(item)) parts.push("画面4c(ふつう/長い+" + item.longAddPrice + "円)");
+    parts.push("画面5(確定)");
+    return parts.join("→");
+  }
+
+  var RISE_MENU_LOGIC = {
+    getItemsFor: getItemsFor,
+    shouldShowScreen4: shouldShowScreen4,
+    shouldShowScreen4b: shouldShowScreen4b,
+    shouldShowScreen4c: shouldShowScreen4c,
+    resolvePrice: resolvePrice,
+    describePath: describePath
+  };
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = RISE_MENU_LOGIC;
+  } else {
+    root.RISE_MENU_LOGIC = RISE_MENU_LOGIC;
+  }
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<!-- ▼ ui.flags.js  sha256:c016b2f6747756dc -->
+<script>
+/*
+ * RISE南関町 来店記録タブレット — UI挙動フラグ
+ *
+ * 計画書 §画面設計 L152:
+ *  「男性×パーマは1択なので画面4を飛ばして画面5へ。★操作感が他と変わるので
+ *    実機で違和感を確認。不自然なら1択でも画面を出す」
+ *
+ * この分岐を定数1つで切り替えられるようにする。
+ */
+(function (root) {
+  var RISE_UI_FLAGS = {
+    // true  : 該当メニューが1件のみの場合、画面4（一覧）を飛ばして画面5（確定）へ直行する
+    // false : 1件のみでも画面4を表示し、1項目だけのボタンをタップさせてから画面5へ進む
+    // 2026-08-09時点は true（計画書の既定どおり）。実機テストで違和感があれば false に変更するだけでよい。
+    SKIP_SCREEN4_WHEN_SINGLE_ITEM: true,
+
+    // 確定後、自動的に画面1へ戻るまでの待機時間（ミリ秒）
+    // ★2026-09-14 3000 → 1200（司令「確定してからトップに戻るまでが異様に長い」）
+    //   実測: 確定→トップ 3.3秒／うち3.0秒がこの値／通信は1.1〜1.4秒
+    //   ＝ ★待ちのほうが通信より長かった。送信の完了は待たない作りに変えたので、
+    //     この値は「お礼の画面を見せる時間」だけを意味する。
+    //   ★長すぎると次のお客様を待たせ、★短すぎると押した実感が出ない。
+    AUTO_RETURN_MS: 1200,
+
+    // ★送信先タブの切替。
+    //   "test" → 試験タブ ／ "live" → 本番タブ
+    //   2026-08-10 13:2x 端末→受け口→シートの疎通確認が通ったため live へ切替。
+    //   戻す時は "test" に変え、index.html の ?v= も必ず上げること。
+    SUBMIT_MODE: "live",
+
+    // ★「他のメニューを追加」を出すか（2026-09-14）。
+    //   ★false の間は ★今までどおり1人1メニュー。ボタンは出ない。
+    //
+    //   ★なぜ既定を false にしたか:
+    //     画面を上げた直後、★「visit_id を読む側」が ★実運用では居ないと判明した。
+    //     毎晩23時に実際に走るのは ★GAS の dailyRollup で、これは ★行数で客数を数える
+    //     （gas/Code_production.gs:333 `g.n++` ／ 初めて・2回目〜・男・女 も同じ）。
+    //     マリアが直した Python 版（rise_daily_rollup.py）は ★停止済みのジョブだった。
+    //   → ★このまま使えると、★1人が2メニュー選んだ日だけ ★客数が水増しされる。
+    //   ★GAS の dailyRollup が visit_id で数えるようになったら true にする。
+    //     （★true にするのはそれだけ。画面のコードは触らない）
+    //   ★2026-09-14 02:30 true へ。受け口側の確認が取れたため:
+    //     司令がデプロイ → 実機で ?mode=test を1タップ → 試験タブ行2に
+    //     visit_id=8bc3404c… / visit_seq=1 / visit_size=1 が入ったのをマリアが確認
+    //     （Sheets API で 試験!A1:P100 を直接読んで16列とも突合）
+    MULTI_MENU_ENABLED: true
+  };
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = RISE_UI_FLAGS;
+  } else {
+    root.RISE_UI_FLAGS = RISE_UI_FLAGS;
+  }
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<!-- ▼ submit.js  sha256:39335492f1505df2 -->
+<script>
+/*
+ * RISE南関町 来店記録タブレット — 送信部
+ *
+ * ★2026-08-10 デプロイ済みの受け口URLへ差し替え済み（司令 msg 1536223966996336720）。
+ *   書き込みには端末トークンが要るため、トークン未登録の端末から送っても受け口が拒否する。
+ *
+ * 実装するのは「送信失敗時の再送のみ」（計画書 §通信の扱い）。
+ * 本格的なオフライン同期は作らない。localStorage に未送信キューを1つ持ち、
+ * 次の送信タイミング（次のお客様の確定時、またはページ読み込み時）にまとめて再試行する。
+ */
+(function (root) {
+  // 受け口（GAS ウェブアプリ）。書き込みには端末トークンが要る。
+  var SUBMIT_URL = "https://script.google.com/macros/s/AKfycbyVg9Fn3tbOJwcZKMnzV817dbNMpNmRXDzjvP5XqlGEczAaqBI8EXkiC9SfioJ-qIqB/exec";
+  var QUEUE_KEY = "rise_visit_log_pending_queue_v1";
+  var TOKEN_KEY = "rise_visit_log_token_v1";
+  var DEVICE_KEY = "rise_visit_log_device_v1";
+  var REJECTED_KEY = "rise_visit_log_rejected_v1";
+  var MAX_RETRIES = 20; // これを超えたら再送を打ち切り、退避へ回す
+
+  /*
+   * ── 端末の登録（トークン） ─────────────────────────────────────────
+   * 店の端末で 1 回だけ次の形で開くと、端末内に保存され、以降は普通のURLで動く。
+   *     https://<公開URL>/#t=<トークン>&d=<端末名>
+   *
+   * ★トークンの値は受け口（GAS）のスクリプトプロパティに司令が直接入力するもので、
+   *   このリポジトリにも画面のソースにも書かない。大神も値を知らない。
+   * ★読み取った直後にURLのハッシュを消す（画面に残さない／履歴に残さない）。
+   */
+  function readHashParams() {
+    var out = {};
+    try {
+      var h = (root.location && root.location.hash) ? root.location.hash.replace(/^#/, "") : "";
+      if (!h) return out;
+      h.split("&").forEach(function (kv) {
+        var i = kv.indexOf("=");
+        if (i > 0) out[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1));
+      });
+    } catch (e) { /* 解析に失敗しても画面は止めない */ }
+    return out;
+  }
+
+  function registerFromHash() {
+    var p = readHashParams();
+    var changed = false;
+    try {
+      if (p.t && root.localStorage) { root.localStorage.setItem(TOKEN_KEY, p.t); changed = true; }
+      if (p.d && root.localStorage) { root.localStorage.setItem(DEVICE_KEY, p.d); changed = true; }
+    } catch (e) { /* 保存に失敗しても画面は止めない */ }
+    if (changed) {
+      // URLからトークンを消す（表示・履歴・共有からの漏れを防ぐ）
+      try {
+        if (root.history && root.history.replaceState) {
+          root.history.replaceState(null, "", root.location.pathname + root.location.search);
+        }
+      } catch (e) { /* 消せなくても動作は継続 */ }
+    }
+    return changed;
+  }
+
+  function getToken() {
+    try { return (root.localStorage && root.localStorage.getItem(TOKEN_KEY)) || ""; }
+    catch (e) { return ""; }
+  }
+
+  function getDevice() {
+    try {
+      var d = root.localStorage && root.localStorage.getItem(DEVICE_KEY);
+      if (d) return d;
+    } catch (e) { /* fallthrough */ }
+    // 登録時に端末名を渡していない場合の控えめな推定（識別用であって判定には使わない）
+    try {
+      var ua = (root.navigator && root.navigator.userAgent) || "";
+      if (/iPad|Macintosh/i.test(ua) && "ontouchend" in (root.document || {})) return "ipad";
+      if (/iPad/i.test(ua)) return "ipad";
+      if (/Android/i.test(ua)) return "android";
+    } catch (e) { /* fallthrough */ }
+    return "unknown";
+  }
+
+  /**
+   * 送信モード。既定は "test"（＝試験タブ行き）。
+   * ★本番へ切り替える時だけ ui.flags.js の SUBMIT_MODE を "live" にする。
+   *   既定を test にしてあるのは、設定し忘れた状態で本番タブを汚さないため。
+   */
+  function getMode() {
+    // ★2026-09-14（司令ご依頼）: URL に ?mode=test を付けたら ★必ず試験タブへ入れる。
+    //   それまで試験に落とす手段が ui.flags.js の書き換えしか無く、
+    //   ★試すと本番の端末まで試験モードになった（＝安全に試せなかった）。
+    //   ★live へ上げる向きの指定は ★受け付けない。URL で本番に書けてしまうと、
+    //   リンクを踏んだだけで本番を汚せることになる。
+    try {
+      if (root.location && /(^|[?&])mode=test([&#]|$)/.test(String(root.location.search))) {
+        return "test";
+      }
+    } catch (e) { /* fallthrough */ }
+    try {
+      var f = root.RISE_UI_FLAGS;
+      if (f && f.SUBMIT_MODE === "live") return "live";
+    } catch (e) { /* fallthrough */ }
+    return "test";
+  }
+
+  function loadQueue() {
+    try {
+      var raw = root.localStorage ? root.localStorage.getItem(QUEUE_KEY) : null;
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveQueue(queue) {
+    try {
+      if (root.localStorage) root.localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    } catch (e) {
+      /* 保存に失敗しても画面は止めない */
+    }
+  }
+
+  function enqueue(record) {
+    var queue = loadQueue();
+    queue.push(record);
+    saveQueue(queue);
+  }
+
+  /*
+   * ★Content-Type は "text/plain" にすること（"application/json" にしない）。
+   *   application/json はブラウザから見て「単純リクエスト」ではないため、
+   *   本番のPOSTの前に OPTIONS（プリフライト）が飛ぶ。GAS のウェブアプリは
+   *   OPTIONS を処理しないので、そこで失敗し **POSTが1度も届かない**。
+   *   本文はJSON文字列のままで、受け口は e.postData.contents を JSON.parse する。
+   */
+  /*
+   * ★受け口は「拒否」の時も HTTP 200 を返し、本文に {"ok":false,"msg":"理由"} を入れる。
+   *   HTTPの成否だけを見ると、弾かれた記録を「送れた」と誤判定して**静かに失う**。
+   *   2026-08-10 の実測で、応答は読める（type:"cors"）ことを確認済み。
+   *
+   * 判定は3通りに分ける:
+   *   sent      … 受理された。キューから外す
+   *   rejected  … 受け口が拒否。再送しても直らないので、別枠に退避して残す
+   *   retry     … 通信できなかった／応答を読めない。キューに積んで後で再試行
+   */
+  function classifyResponse(res) {
+    if (res && res.type === "opaque") return { kind: "retry", reason: "opaque" };
+    if (!res.ok) return { kind: "retry", reason: "http_" + res.status };
+    return res.text().then(function (t) {
+      var body = null;
+      try { body = JSON.parse(t); } catch (e) { /* JSONで無ければ判断できない */ }
+      if (!body || typeof body.ok === "undefined") {
+        return { kind: "retry", reason: "unreadable_body" };
+      }
+      if (body.ok) return { kind: "sent" };
+      return { kind: "rejected", reason: String(body.msg || "rejected") };
+    });
+  }
+
+  function sendOne(record) {
+    return fetch(SUBMIT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify(record)
+    }).then(classifyResponse)
+      .catch(function (e) {
+        return { kind: "retry", reason: "network:" + (e && e.message ? e.message : "error") };
+      });
+  }
+
+  /** 受け口に拒否された記録を退避する（消さずに残し、後から拾えるようにする） */
+  function keepRejected(record, reason) {
+    try {
+      var raw = root.localStorage ? root.localStorage.getItem(REJECTED_KEY) : null;
+      var list = raw ? JSON.parse(raw) : [];
+      list.push({ reason: reason, at: new Date().toISOString(), record: record });
+      if (list.length > 200) list = list.slice(-200); // 端末の容量を圧迫しない
+      if (root.localStorage) root.localStorage.setItem(REJECTED_KEY, JSON.stringify(list));
+    } catch (e) { /* 保存に失敗しても画面は止めない */ }
+  }
+
+  /**
+   * 1件送信する。失敗した場合はキューへ積んで後で再送する（例外は投げない＝画面は止めない）。
+   */
+  function submitRecord(record) {
+    return sendOne(record).then(function (r) {
+      if (r.kind === "sent") return r;
+      if (r.kind === "rejected") { keepRejected(record, r.reason); return r; }
+      enqueue(record); // retry
+      return r;
+    });
+  }
+
+  /**
+   * 未送信キューの再送を試みる。呼び出しごとに全件試行し、成功したものだけキューから外す。
+   */
+  function retryPending() {
+    var queue = loadQueue();
+    if (queue.length === 0) return Promise.resolve({ attempted: 0, succeeded: 0 });
+    var remaining = [];
+    var succeeded = 0;
+    var rejected = 0;
+    var attempts = queue.map(function (record) {
+      return sendOne(record).then(function (r) {
+        if (r.kind === "sent") { succeeded++; return; }
+        if (r.kind === "rejected") { keepRejected(record, r.reason); rejected++; return; }
+        // ★再送を無限に繰り返さない。上限を超えたら退避して打ち切る
+        record._tries = (record._tries || 0) + 1;
+        if (record._tries >= MAX_RETRIES) { keepRejected(record, "gave_up:" + r.reason); rejected++; return; }
+        remaining.push(record);
+      });
+    });
+    return Promise.all(attempts).then(function () {
+      saveQueue(remaining);
+      return { attempted: queue.length, succeeded: succeeded, rejected: rejected };
+    });
+  }
+
+  /*
+   * ── 本日の状況の取得（画面上部の表示用） ──────────────────────────
+   * ★数えるのはサーバ（GAS）1か所だけ。端末では数え直さない。
+   *   端末で別に数えると、集計の数え方を変えた時に画面とシートが食い違い、
+   *   どちらが正しいか分からなくなる（2026-08-16 マリアと確認）。
+   *   端末が持っているのは「まだ送れていない件数」だけで、これはサーバには分からない。
+   *
+   * ★経路は doGet ではなく doPost に相乗りしている。
+   *   理由: この POST(text/plain) は本番で通ることが実証済みで、
+   *   トークンが URL・履歴に残らない。GET は一度も通していない。
+   */
+  function fetchToday() {
+    var token = getToken();
+    if (!token) return Promise.resolve({ ok: false, reason: "no_token" });
+    return fetch(SUBMIT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "today", token: token })
+    }).then(function (res) {
+      if (!res.ok) return { ok: false, reason: "http_" + res.status };
+      return res.text().then(function (t) {
+        var body = null;
+        try { body = JSON.parse(t); } catch (e) { /* 読めなければ失敗扱い */ }
+        if (!body) return { ok: false, reason: "unreadable" };
+        // ★受け口が返した理由をそのまま持ち帰る。
+        //   特に "no_record_id" は「受け口が action:today を知らない＝公開版が古い」印。
+        //   この時、受け口側は拒否ログに1行書くので、呼び続けるとログが溜まる。
+        if (body.ok !== true) return { ok: false, reason: "server", msg: String(body.msg || "") };
+        return body;
+      });
+    }).catch(function (e) {
+      return { ok: false, reason: "network:" + (e && e.message ? e.message : "error") };
+    });
+  }
+
+  /**
+   * 本日の一覧（司令 2026-08-16・レジとの突合用）。
+   * ★並べ替えも時刻の整形もサーバ側でやってもらう。端末では加工しない。
+   *   受信日時はシート上で 0埋めが落ちるため、端末で解釈すると午前10時以降に狂う。
+   */
+  function fetchTodayList() {
+    var token = getToken();
+    if (!token) return Promise.resolve({ ok: false, reason: "no_token" });
+    return fetch(SUBMIT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "today_list", token: token })
+    }).then(function (res) {
+      if (!res.ok) return { ok: false, reason: "http_" + res.status };
+      return res.text().then(function (t) {
+        var body = null;
+        try { body = JSON.parse(t); } catch (e) { /* 読めなければ失敗扱い */ }
+        if (!body) return { ok: false, reason: "unreadable" };
+        if (body.ok !== true) return { ok: false, reason: "server", msg: String(body.msg || "") };
+        return body;
+      });
+    }).catch(function (e) {
+      return { ok: false, reason: "network:" + (e && e.message ? e.message : "error") };
+    });
+  }
+
+  /** まだ送れていない件数。★サーバは知りようがない＝端末だけが持つ情報 */
+  function pendingCount() {
+    try { return loadQueue().length; } catch (e) { return 0; }
+  }
+
+  /**
+   * 端末のタイムゾーン設定に関係なく JST(+09:00) の ISO 8601 文字列を返す。
+   * 記録要件「日時（ISO・JST）」に対応（計画書 §送信部）。
+   */
+  function toJstIsoString(date) {
+    var jstMs = date.getTime() + 9 * 60 * 60 * 1000; // UTCミリ秒 + 9時間
+    var jst = new Date(jstMs);
+    var pad = function (n, len) {
+      len = len || 2;
+      var s = String(n);
+      while (s.length < len) s = "0" + s;
+      return s;
+    };
+    return (
+      jst.getUTCFullYear() + "-" + pad(jst.getUTCMonth() + 1) + "-" + pad(jst.getUTCDate()) +
+      "T" + pad(jst.getUTCHours()) + ":" + pad(jst.getUTCMinutes()) + ":" + pad(jst.getUTCSeconds()) +
+      "." + pad(jst.getUTCMilliseconds(), 3) + "+09:00"
+    );
+  }
+
+  /**
+   * 1レコードに一意のIDを振る。
+   * ★再送キューに積まれた後も同じIDのまま送り直されるため、受け口側は
+   *   「同じ record_id が既にあればスキップ」で二重計上を防げる。
+   *   ここで毎回振り直すと、通信が不安定な日に件数が水増しされる。
+   */
+  function newRecordId() {
+    try {
+      if (root.crypto && typeof root.crypto.randomUUID === "function") {
+        return root.crypto.randomUUID();
+      }
+    } catch (e) {
+      /* 古い端末では下のフォールバックへ */
+    }
+    // フォールバック: 時刻 + 乱数。端末1台・1秒に1件未満の運用では十分に衝突しない。
+    return "r-" + Date.now().toString(36) + "-" +
+      Math.floor(Math.random() * 1e12).toString(36);
+  }
+
+  /**
+   * ★1回の来店で複数メニューを選べるようにするための組み立て（2026-09-14 司令ご依頼）。
+   *
+   * ★症状: カットとカラーを両方選べず、分けて入れると ★2人分に数えられていた
+   *        （受け口側が「来店客数 = 行数」で数えているため。gas/Code.gs:92）。
+   * ★方針(案B): 明細の形は変えず、★同じ来店の行に同じ visit_id を持たせる。
+   *        集計側は「行数」ではなく「visit_id の種類数」を数える。
+   *        → 明細1行=1メニュー のままなので、売上・メニュー別集計は今までどおり動く。
+   *
+   * ★受け口が visit_id 列を持つまでは、送っても ★黙って捨てられる（拒否はされない。
+   *   検証済み: gas/Code_production.gs:86-87 が見るのは record_id と menu_id だけ）。
+   *   ★そのため「画面だけ先に本番へ出す」ことはしない。出すと ★2人と数えられる行が
+   *   実際に作れるようになり、★いまより悪くなる。マリアの列追加と同時に上げる。
+   */
+  function buildRecords(state, cart) {
+    var visitId = newRecordId();
+    var list = (cart && cart.length) ? cart : [state];
+    return list.map(function (sel, i) {
+      var r = buildRecord(sel);
+      r.visit_id = visitId;        // ★同じ来店＝同じ値
+      r.visit_seq = i + 1;         // 何番目のメニューか（1始まり）
+      r.visit_size = list.length;  // その来店で選ばれたメニューの数
+      return r;
+    });
+  }
+
+  function buildRecord(state) {
+    var now = new Date();
+    return {
+      record_id: newRecordId(), // ★受け口側の重複排除キー
+      token: getToken(), // ★端末登録トークン。未登録なら空＝受け口が拒否する
+      mode: getMode(), // "test"（既定・試験タブ）/ "live"（本番タブ）
+      device: getDevice(), // 端末の識別名（判定には使わない・後から追う用）
+      timestamp_iso: toJstIsoString(now), // JST固定（端末のタイムゾーン設定に非依存）
+      visit_type: state.visitType, // "first" | "repeat"
+      gender: state.gender, // "MEN" | "WOMAN"
+      section: state.section, // "CUT" | "COLOR" | "PERMA"
+      menu_id: state.item.id, // ★受け口側が料金表と突き合わせるキー
+      menu_name: state.item.name,
+      kari_applied: !!state.kariApplied, // 丸刈り選択の有無
+      long_applied: !!state.longApplied, // ロング加算（旧「ロング増し」「パーマロング増し」相当）選択の有無
+      long_add_price: state.longApplied ? (state.longAddPrice || 0) : 0, // ロング加算額（未選択時は0）
+      price: state.price, // ★丸刈り・ロング加算を反映した最終金額
+      is_minimum: !!state.isMinimum // 「〜」表記の下限値で記録した場合 true
+    };
+  }
+
+  // ページ読み込み時に、ハッシュにトークンがあれば登録して即座にURLから消す
+  try { registerFromHash(); } catch (e) { /* 画面は止めない */ }
+
+  // ★既に開いている画面のURL末尾に #t=… を足しただけの場合、ページは再読み込みされず
+  //   上の初期化は走らない。hashchange でも拾う（登録できずに全件拒否される事故を防ぐ）。
+  try {
+    if (root.addEventListener) {
+      root.addEventListener("hashchange", function () {
+        try { registerFromHash(); } catch (e) { /* 画面は止めない */ }
+      });
+    }
+  } catch (e) { /* 画面は止めない */ }
+
+  var RISE_SUBMIT = {
+    SUBMIT_URL: SUBMIT_URL,
+    registerFromHash: registerFromHash,
+    getToken: getToken,
+    getDevice: getDevice,
+    getMode: getMode,
+    submitRecord: submitRecord,
+    retryPending: retryPending,
+    fetchToday: fetchToday,
+    fetchTodayList: fetchTodayList,
+    pendingCount: pendingCount,
+    buildRecord: buildRecord,
+    buildRecords: buildRecords,
+    toJstIsoString: toJstIsoString,
+    _loadQueue: loadQueue, // テスト用
+    listRejected: function () {
+      try { return JSON.parse((root.localStorage && root.localStorage.getItem(REJECTED_KEY)) || "[]"); }
+      catch (e) { return []; }
+    }
+  };
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = RISE_SUBMIT;
+  } else {
+    root.RISE_SUBMIT = RISE_SUBMIT;
+  }
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<!-- ▼ app.js  sha256:b252808c92e80c1e -->
+<script>
+/*
+ * RISE南関町 来店記録タブレット — 画面制御（DOM操作）
+ * サーバー不要・ビルド不要。index.html から classic <script> で読み込む。
+ * 依存: menu.config.js(RISE_MENU_CONFIG) / menu.logic.js(RISE_MENU_LOGIC)
+ *       ui.flags.js(RISE_UI_FLAGS) / submit.js(RISE_SUBMIT)
+ */
+(function () {
+  "use strict";
+
+  var CONFIG = window.RISE_MENU_CONFIG;
+  var LOGIC = window.RISE_MENU_LOGIC;
+  var FLAGS = window.RISE_UI_FLAGS;
+  var SUBMIT = window.RISE_SUBMIT;
+
+  var screens = {
+    s1: document.getElementById("screen-1"),
+    s2: document.getElementById("screen-2"),
+    s3: document.getElementById("screen-3"),
+    s4: document.getElementById("screen-4"),
+    s4b: document.getElementById("screen-4b"),
+    s4c: document.getElementById("screen-4c"),
+    s5: document.getElementById("screen-5"),
+    thanks: document.getElementById("screen-thanks")
+  };
+
+  var SECTION_LABEL = { CUT: "カット", COLOR: "カラー", PERMA: "パーマ" };
+
+  // 現在の来店者の選択状態（確定後にリセットする）
+  var state = {};
+
+  // ★2026-09-14（司令ご依頼）: 1人のお客様が選んだメニューを積む場所。
+  //   「他のメニューを追加」を押すと、今の選択をここへ移して画面3へ戻る。
+  //   ★確定時は cart + いま選択中のもの をまとめて1回の来店として送る。
+  //   ★ご来店（初めて/2回目）と性別は ★同じお客様なので聞き直さない。
+  var cart = [];
+
+  /** いまの state から、メニュー1件ぶんの確定した選択を切り出す */
+  function snapshotSelection() {
+    return {
+      visitType: state.visitType,
+      gender: state.gender,
+      section: state.section,
+      item: state.item,
+      kariApplied: state.kariApplied,
+      longApplied: state.longApplied,
+      longAddPrice: state.longAddPrice,
+      price: state.price,
+      isMinimum: state.isMinimum
+    };
+  }
+
+  /** 画面5に出す合計金額。cart と 選択中のものを足す */
+  function cartTotal() {
+    var sum = cart.reduce(function (a, s) { return a + (s.price || 0); }, 0);
+    return sum + (state.price || 0);
+  }
+
+  function resetState() {
+    state = {
+      visitType: null, // "first" | "repeat"
+      gender: null, // "MEN" | "WOMAN"
+      section: null, // "CUT" | "COLOR" | "PERMA"
+      item: null, // メニュー項目オブジェクト
+      kariChoice: null, // "normal" | "kari" | null（画面4bで選択）
+      longChoice: null, // "normal" | "long" | null（画面4cで選択）
+      kariApplied: false,
+      longApplied: false,
+      longAddPrice: 0,
+      price: null,
+      isMinimum: false
+    };
+  }
+  resetState();
+
+  function showOnly(key) {
+    Object.keys(screens).forEach(function (k) {
+      screens[k].classList.toggle("active", k === key);
+    });
+  }
+
+  /*
+   * ── 画面1上部の帯 ────────────────────────────────────────────
+   * 目的（司令 2026-08-16）: ①入力し忘れの防止 ②レジとの突合
+   * ★数字はサーバ（GAS）が数えたものをそのまま出す。端末では数え直さない。
+   *   取得できない時は、前の数字も 0 も出さず「取得できません」と出す。
+   *   古い数字を正しい顔で見せると、突合しているつもりで合っていない状態になる。
+   */
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  /*
+   * ★受け口の公開版が古い（action:"today" を知らない）場合の自衛。
+   *   古い版はこの要求を「record_id の無い記録」とみなして拒否し、★拒否ログに1行書く。
+   *   画面1に戻るたびに呼ぶので、放っておくと拒否ログが客数ぶん溜まる。
+   *   一度そう分かったら、その場で呼ぶのをやめる（記録の送信そのものには影響しない）。
+   */
+  var todayDisabled = false;
+  var todayDisabledNote = "";
+
+  function renderTodayBar(data) {
+    var bar = document.getElementById("today-bar");
+    var alertEl = document.getElementById("today-alert");
+    var notes = [];
+
+    var pending = 0;
+    try { pending = SUBMIT.pendingCount(); } catch (e) { pending = 0; }
+    if (pending > 0) notes.push("未送信 " + pending + " 件");
+
+    if (!data || data.ok !== true) {
+      // ★ここで 0 を出さない。「0人」と「分からない」は別物。
+      setText("today-last", "—");
+      setText("today-count", "—");
+      setText("today-amount", "");
+      if (bar) bar.classList.remove("is-closed");
+      if (data && data.reason === "no_token") {
+        notes.unshift("この端末は未登録です");
+      } else if (data && data.reason === "server" && data.msg === "no_record_id") {
+        // 公開版が古い。呼び続けると拒否ログが溜まるので、この画面では以降呼ばない。
+        todayDisabled = true;
+        todayDisabledNote = "受け口が未更新です（デプロイし直してください）";
+        notes.unshift(todayDisabledNote);
+      } else if (todayDisabled) {
+        notes.unshift(todayDisabledNote);
+      } else {
+        notes.unshift("数字を取得できません（通信）");
+      }
+    } else if (data.closed) {
+      setText("today-last", data.last || "—");
+      setText("today-count", "本日休業");
+      setText("today-amount", "");
+      if (bar) bar.classList.add("is-closed");
+    } else {
+      // ★時刻だけだと、見た人が引き算をしないと「空きすぎ」に気づけない。
+      //   経過分をそのまま添える（司令の意図＝入力し忘れの防止）。
+      var last = data.last || "";
+      var mins = (data.since_min === null || data.since_min === undefined) ? null : Number(data.since_min);
+      setText("today-last", last ? (mins === null ? last : last + "（" + mins + "分前）") : "まだありません");
+      setText("today-count", (Number(data.count) || 0) + " 人");
+      setText("today-amount", (Number(data.amount) || 0).toLocaleString("ja-JP") + " 円");
+      if (bar) bar.classList.remove("is-closed");
+
+      // ★「何分空いたら警告か」はサーバ（設定シート しきい値_分）が決める。
+      //   ここに分数を書くと、設定を変えた時に画面とGASで基準が2つになる。
+      if (data.alert === true) {
+        notes.unshift(mins === null ? "入力が空いています" : mins + "分 入力がありません");
+      }
+    }
+
+    if (alertEl) {
+      alertEl.textContent = notes.join(" ／ ");
+      alertEl.hidden = notes.length === 0;
+    }
+  }
+
+  function refreshTodayBar() {
+    if (todayDisabled) { renderTodayBar(null); return; }
+    // 取りに行っている間は、前の数字を残さない（古い値を突合に使わせない）
+    renderTodayBar(null);
+    setText("today-last", "…");
+    setText("today-count", "…");
+    setText("today-amount", "…");
+    var alertEl = document.getElementById("today-alert");
+    if (alertEl) alertEl.hidden = true;
+
+    SUBMIT.fetchToday().then(renderTodayBar).catch(function () { renderTodayBar(null); });
+  }
+
+  function goScreen1() {
+    resetState();
+    cart = [];                 // ★次のお客様へ移るので、積んだメニューも捨てる
+    showOnly("s1");
+    refreshTodayBar();
+  }
+
+  /*
+   * ── 本日の一覧（ダイアログ） ──────────────────────────────────
+   * 司令 2026-08-16: 入力時間 / 来店回数 / 性別 / メニュー名 / 金額 を一覧で。
+   * ★中身はサーバが並べて整形したものをそのまま出す。端末で数えも並べ替えもしない。
+   *   受信日時はシート上で 0埋めが落ちるため、端末で時刻を解釈すると午前10時以降に狂う。
+   */
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function renderTodayList(data) {
+    var body = document.getElementById("list-body");
+    if (!body) return;
+
+    if (!data || data.ok !== true) {
+      var msg = "一覧を取得できません（通信）";
+      if (data && data.reason === "no_token") {
+        msg = "この端末は未登録です";
+      } else if (data && data.reason === "server" && data.msg === "no_record_id") {
+        // ★帯と同じ自衛。古い受け口はこの要求を拒否ログに1行書くので、以降は叩かない。
+        todayDisabled = true;
+        todayDisabledNote = "受け口が未更新です（デプロイし直してください）";
+        msg = todayDisabledNote;
+      } else if (data && data.reason === "server") {
+        msg = "一覧を取得できません（" + esc(data.msg) + "）";
+      }
+      body.innerHTML = '<div class="list-msg">' + esc(msg) + "</div>";
+      return;
+    }
+
+    var rows = data.rows || [];
+    if (rows.length === 0) {
+      body.innerHTML = '<div class="list-msg">' +
+        (data.closed ? "本日は休業日です" : "まだ1件も入力されていません") + "</div>";
+      return;
+    }
+
+    var sum = 0;
+    var html = '<table class="list-table"><thead><tr>' +
+      "<th>入力時間</th><th>来店</th><th>性別</th><th>メニュー</th><th>金額</th>" +
+      "</tr></thead><tbody>";
+    rows.forEach(function (r) {
+      var price = Number(r.price) || 0;
+      sum += price;
+      // note＝丸刈り／ロング。料金表と違って見える行の理由なので、金額の隣に添える
+      var menu = esc(r.menu) + (r.note ? '<span class="list-note">（' + esc(r.note) + "）</span>" : "");
+      html += "<tr>" +
+        "<td>" + esc(r.time) + "</td>" +
+        "<td>" + esc(r.visit) + "</td>" +
+        "<td>" + esc(r.gender) + "</td>" +
+        "<td>" + menu + "</td>" +
+        '<td class="num">' + price.toLocaleString("ja-JP") + "</td>" +
+        "</tr>";
+    });
+    html += "</tbody></table>";
+
+    // ★出す合計はサーバの count / amount（数えるのは1か所）。
+    //   ただし受け取った行を足した額とずれていたら、それは payload 自体の異常なので黙らせない。
+    var srvCount = (data.count === undefined) ? rows.length : Number(data.count);
+    var srvAmount = (data.amount === undefined) ? sum : Number(data.amount);
+    html += '<div class="list-total">合計 ' + srvCount + " 人 ／ " +
+      srvAmount.toLocaleString("ja-JP") + " 円</div>";
+    if (srvCount !== rows.length || srvAmount !== sum) {
+      html += '<div class="list-msg">合計と明細が一致しません（明細 ' + rows.length + " 人 ／ " +
+        sum.toLocaleString("ja-JP") + " 円）</div>";
+    }
+    body.innerHTML = html;
+  }
+
+  function openTodayList() {
+    var ov = document.getElementById("list-overlay");
+    var body = document.getElementById("list-body");
+    if (!ov || !body) return;
+    ov.hidden = false;
+    if (todayDisabled) {
+      // 受け口が古いと分かっている間は叩かない（拒否ログを増やさない）
+      body.innerHTML = '<div class="list-msg">' + esc(todayDisabledNote) + "</div>";
+      return;
+    }
+    body.textContent = "読み込み中…";
+    SUBMIT.fetchTodayList().then(renderTodayList).catch(function () { renderTodayList(null); });
+  }
+
+  function closeTodayList() {
+    var ov = document.getElementById("list-overlay");
+    if (ov) ov.hidden = true;
+  }
+
+  function goScreen2() {
+    showOnly("s2");
+  }
+
+  function goScreen3() {
+    showOnly("s3");
+  }
+
+  function renderScreen4() {
+    var items = LOGIC.getItemsFor(CONFIG, state.gender, state.section);
+    var container = document.getElementById("screen-4-buttons");
+    container.innerHTML = "";
+    items.forEach(function (item) {
+      var btn = document.createElement("button");
+      btn.className = "tap-btn menu-btn";
+      btn.type = "button";
+      btn.textContent = item.name;
+      btn.addEventListener("click", function () {
+        chooseItem(item);
+      });
+      container.appendChild(btn);
+    });
+    showOnly("s4");
+  }
+
+  function goScreen4b() {
+    showOnly("s4b");
+  }
+
+  function goScreen4c() {
+    showOnly("s4c");
+  }
+
+  // 画面4で項目を選んだ直後。画面4b(丸刈り)→画面4c(ロング加算) の順で判定する。
+  // hasKari(男性CUT)とhasLong(女性COLOR/PERMA)は互いに排他だが、両方立った場合でも
+  // 順序が固定されていれば壊れない構成にしてある。
+  function chooseItem(item) {
+    state.item = item;
+    state.kariChoice = null;
+    state.longChoice = null;
+    proceedAfterKari();
+  }
+
+  function proceedAfterKari() {
+    if (LOGIC.shouldShowScreen4b(state.item)) {
+      goScreen4b();
+      return;
+    }
+    proceedAfterLong();
+  }
+
+  function proceedAfterLong() {
+    if (LOGIC.shouldShowScreen4c(state.item)) {
+      goScreen4c();
+      return;
+    }
+    finalizePrice();
+  }
+
+  function finalizePrice() {
+    var resolved = LOGIC.resolvePrice(state.item, state.kariChoice, state.longChoice);
+    state.price = resolved.price;
+    state.isMinimum = resolved.isMinimum;
+    state.kariApplied = resolved.kariApplied;
+    state.longApplied = resolved.longApplied;
+    state.longAddPrice = resolved.longApplied ? state.item.longAddPrice : 0;
+    renderScreen5();
+  }
+
+  function renderScreen5() {
+    // ★2つ以上選ばれている時だけ内訳を出す。1つの時は今までの見た目のまま
+    //   （毎回リストが出ると、★1メニューのお客様の操作感が変わってしまう）。
+    // ★受け口(GAS)が visit_id で数えるようになるまで、ボタンは出さない。
+    //   出したまま使われると、★1人が2メニュー選んだ日だけ客数が水増しされる。
+    document.getElementById("btn-add-menu").hidden = !FLAGS.MULTI_MENU_ENABLED;
+
+    var list = document.getElementById("screen-5-items");
+    var picked = cart.concat([snapshotSelection()]);
+    if (picked.length > 1) {
+      list.innerHTML = "";
+      picked.forEach(function (s) {
+        var li = document.createElement("li");
+        li.className = "picked-item";
+        li.textContent = s.item.name + "　" + (s.price || 0).toLocaleString("ja-JP") + " 円";
+        list.appendChild(li);
+      });
+      list.hidden = false;
+    } else {
+      list.hidden = true;
+      list.innerHTML = "";
+    }
+    document.getElementById("screen-5-price").textContent =
+      cartTotal().toLocaleString("ja-JP") + " 円です";
+    showOnly("s5");
+  }
+
+  /**
+   * 「他のメニューを追加」。いまの選択を積んで、画面3（ご希望）へ戻る。
+   * ★ご来店・性別は保持する（同じお客様なので聞き直さない）。
+   * ★積んだ分は cart に入るので、画面5の合計と確定時の送信に必ず含まれる。
+   */
+  function addAnotherMenu() {
+    cart.push(snapshotSelection());
+    // 1メニューぶんの選択だけを初期化する（visitType / gender は残す）
+    state.section = null;
+    state.item = null;
+    state.kariChoice = null;
+    state.longChoice = null;
+    state.kariApplied = false;
+    state.longApplied = false;
+    state.longAddPrice = 0;
+    state.price = null;
+    state.isMinimum = false;
+    goScreen3();
+  }
+
+  function confirmAndSubmit() {
+    var confirmBtn = document.getElementById("btn-confirm");
+    confirmBtn.disabled = true;
+
+    // ★2026-09-14: 1回の来店ぶん（cart + 選択中）をまとめて組み立てる。
+    //   同じ visit_id が入るので、受け口側は ★何行あっても1人として数えられる。
+    var records = SUBMIT.buildRecords(state, cart.concat([snapshotSelection()]));
+    // ★送信の完了を待ってから画面1へ戻す。待たずに戻すと、上部の帯が
+    //   「1件前」の数字を取りに行き、押した直後だけ数が合わないように見える。
+    //   ★1件でも失敗したら残りも送る（1つの失敗で他を巻き込まない）。
+    //   ★2026-09-14: この「待つ」は下で ★待たない形に変えた（理由は下のコメント）。
+    showOnly("thanks");          // ★押した手ごたえを ★先に返す
+    var sent = Promise.all(records.map(function (r) {
+      return SUBMIT.submitRecord(r).catch(function () { /* 画面は止めない */ });
+    }));
+    SUBMIT.retryPending(); // ついでに未送信キューの再送も試みる
+
+    // ★★2026-09-14（司令ご依頼「確定してからトップに戻るまでが異様に長い」）
+    //   実測: 確定→トップ ★3.3秒 ／ うち ★3.0秒 が固定待ち ／ 通信は 1.1〜1.4秒
+    //   ＝ ★待ちのほうが通信より長い。しかも ★その間 画面が何も変わらないので、
+    //     実際の3秒より長く感じる（★押した手ごたえが無い）。
+    //   → ① ★押した瞬間に「ありがとうございました」を出す（上の showOnly("thanks")）
+    //     ② ★送信の完了を待たずに戻る（送信は裏で続く）
+    //     ③ ★送信が終わってから 帯を取り直す
+    //        旧実装が送信を待っていたのは、★帯が「1件前」の数字を出さないため。
+    //        ★待つ代わりに あとで取り直せば、★同じ目的を 待たずに満たせる。
+    //   ★取りこぼしは起きない: 失敗分は submitRecord がキューへ積み、次回 retryPending が送る。
+    sent.then(function () {
+      if (screens.s1.classList.contains("active")) refreshTodayBar();
+    });
+
+    setTimeout(function () {
+      confirmBtn.disabled = false;
+      goScreen1();
+    }, FLAGS.AUTO_RETURN_MS);
+  }
+
+  // ---- イベント登録 ----
+
+  document.getElementById("btn-first").addEventListener("click", function () {
+    state.visitType = "first";
+    goScreen2();
+  });
+  document.getElementById("btn-repeat").addEventListener("click", function () {
+    state.visitType = "repeat";
+    goScreen2();
+  });
+
+  document.getElementById("btn-men").addEventListener("click", function () {
+    state.gender = "MEN";
+    goScreen3();
+  });
+  document.getElementById("btn-woman").addEventListener("click", function () {
+    state.gender = "WOMAN";
+    goScreen3();
+  });
+
+  ["CUT", "COLOR", "PERMA"].forEach(function (sectionKey) {
+    document.getElementById("btn-section-" + sectionKey.toLowerCase()).addEventListener("click", function () {
+      state.section = sectionKey;
+      var items = LOGIC.getItemsFor(CONFIG, state.gender, state.section);
+      if (LOGIC.shouldShowScreen4(CONFIG, FLAGS, state.gender, state.section)) {
+        renderScreen4();
+      } else {
+        // 1択かつスキップ設定＝画面4を飛ばして直接選択確定
+        chooseItem(items[0]);
+      }
+    });
+  });
+
+  document.getElementById("btn-kari-normal").addEventListener("click", function () {
+    state.kariChoice = "normal";
+    proceedAfterLong();
+  });
+  document.getElementById("btn-kari-kari").addEventListener("click", function () {
+    state.kariChoice = "kari";
+    proceedAfterLong();
+  });
+
+  document.getElementById("btn-long-normal").addEventListener("click", function () {
+    state.longChoice = "normal";
+    finalizePrice();
+  });
+  document.getElementById("btn-long-long").addEventListener("click", function () {
+    state.longChoice = "long";
+    finalizePrice();
+  });
+
+  document.getElementById("btn-confirm").addEventListener("click", confirmAndSubmit);
+  document.getElementById("btn-add-menu").addEventListener("click", addAnotherMenu);
+
+  // 本日の一覧（開く／閉じる）
+  document.getElementById("btn-today-list").addEventListener("click", openTodayList);
+  document.getElementById("btn-list-close").addEventListener("click", closeTodayList);
+  // ★暗い部分を押しても閉じる（バツを探せない時の逃げ道）。中身を押した時は閉じない。
+  document.getElementById("list-overlay").addEventListener("click", function (e) {
+    if (e.target === this) closeTodayList();
+  });
+
+  // 起動時に未送信キューがあれば再送を試みる（Wi-Fi復帰後などを想定）
+  SUBMIT.retryPending();
+
+  goScreen1();
+})();
+
+</script>
 </body>
 </html>

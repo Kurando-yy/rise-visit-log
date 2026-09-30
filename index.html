@@ -478,7 +478,12 @@ html, body {
 <!-- ★2026-09-15 下の5本を ★ここへ埋め込みました（司令承認）。
      ★理由：★1本でも取得に失敗すると、★3本は『画面は正常に見えるが中身が無い』、
      ★2本は『真っ白』になる。★外から読むのをやめれば ★原因によらず起きない。
-     ★元ファイルは残置。★編集はそちらで行い scratchpad/inline_js.py で貼り直す。
+     ★★2026-09-25 訂正: 「編集は元ファイルで行い scratchpad/inline_js.py で貼り直す」と
+     ★書いていたが、★★その道具は ★もう存在しない（★セッションの一時領域に置いたため消えた）。
+     ★★編集は ★このファイル（index.html）を ★直接 行うこと。
+     ★元ファイル（menu.config.js 等）は ★履歴のために残してあるだけで ★読まれていない。
+     ★★直した後は ★元ファイル側も ★手で揃えるか、★揃えないなら ★その旨を元ファイルに書くこと
+     （★2026-09-20 時点では 16メニューとも 一致を確認済み）。
      ★読み込み順は ★元のまま（依存があるため変えない）： menu.config.js → menu.logic.js → ui.flags.js → submit.js → app.js
 -->
 <!-- ▼ menu.config.js  sha256:c23148f29b32602b -->
@@ -556,19 +561,19 @@ html, body {
         label: "男性",
         sections: {
           CUT: [
-            { id: "men-cut-cut", name: "カット", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-cutshampoo", name: "カットとシャンプー", officialName: "カットシャンプー", price: 1950, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-cutshaving", name: "カットと顔剃り", officialName: "カットシェービング", price: 1950, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-chouhatsu", name: "カットとシャンプーと顔剃り", officialName: "調髪", price: 2200, hasKari: true, kariPrice: 1950, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-cut", name: "カット", price: 1400, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-cutshampoo", name: "カットとシャンプー", officialName: "カットシャンプー", price: 2100, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-cutshaving", name: "カットと顔剃り", officialName: "カットシェービング", price: 2100, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-chouhatsu", name: "カットとシャンプーと顔剃り", officialName: "調髪", price: 2500, hasKari: true, kariPrice: 1950, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "men-cut-kids", name: "子供カットとシャンプー（0〜15）", officialName: "子供調髪（0〜15）", price: 1850, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
           ],
           COLOR: [
-            { id: "men-color-shiragabokashi", name: "白髪ぼかし", price: 1950, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-color-shiragazome", name: "白髪染め", price: 3250, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-color-shiragabokashi", name: "白髪ぼかし", price: 2400, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-color-shiragazome", name: "白髪染め", price: 3900, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
             { id: "men-color-color", name: "カラー", price: 3900, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
           ],
           PERMA: [
-            { id: "men-perma-perma", name: "パーマ", price: 6500, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+            { id: "men-perma-perma", name: "パーマ", price: 5900, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
           ]
         }
       },
@@ -576,21 +581,21 @@ html, body {
         label: "女性",
         sections: {
           CUT: [
-            { id: "woman-cut-cut", name: "カット", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "woman-cut-cutshampoo", name: "カットとシャンプー", price: 2600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "woman-cut-shampoo", name: "シャンプー", price: 1300, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "woman-cut-maegami", name: "前髪カット", price: 600, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "woman-cut-kaosori", name: "お顔剃り", price: 2050, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+            { id: "woman-cut-cut", name: "カット", price: 1400, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-cutshampoo", name: "カットとシャンプー", price: 2800, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-shampoo", name: "シャンプー", price: 1400, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-maegami", name: "前髪カット", price: 800, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "woman-cut-kaosori", name: "お顔剃り", price: 2100, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
           ],
           COLOR: [
-            { id: "woman-color-shiragabokashi", name: "白髪ぼかし", price: 1950, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
-            { id: "woman-color-shiragazome", name: "白髪染め", price: 4550, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
-            { id: "woman-color-oshare", name: "おしゃれ染め", price: 5200, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
-            { id: "woman-color-manicure", name: "マニキュア", price: 5200, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false }
+            { id: "woman-color-shiragabokashi", name: "白髪ぼかし", price: 2400, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
+            { id: "woman-color-shiragazome", name: "白髪染め", price: 4900, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
+            { id: "woman-color-oshare", name: "おしゃれ染め", price: 4900, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false },
+            { id: "woman-color-manicure", name: "マニキュア", price: 4900, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: false }
           ],
           PERMA: [
-            { id: "woman-perma-faceline", name: "フェイスラインパーマ", price: 5200, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: true },
-            { id: "woman-perma-perma", name: "パーマ", price: 6500, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: true }
+            { id: "woman-perma-faceline", name: "フェイスラインパーマ", price: 5900, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: true },
+            { id: "woman-perma-perma", name: "パーマ", price: 5900, hasKari: false, kariPrice: null, hasLong: true, longAddPrice: 600, isMinimum: true }
           ]
         }
       }

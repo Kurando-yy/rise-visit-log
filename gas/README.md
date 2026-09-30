@@ -20,7 +20,8 @@
 
 ```
 23:01  集計（マリアのトリガー）
-23:50  ★マリアの自動書き出し → Obsidian 08_CUT/ライズ南関町/ライズ来店記録GAS_本番ソース全文.md
+★★12:00  ★マリアの自動書き出し → Obsidian 08_CUT/ライズ南関町/ライズ来店記録GAS_本番ソース全文.md
+　　　（★2026-09-16 に 23:50 から変更。★夜はMBPがスリープで走らないため）
 23:55  ★大神の突合ジョブ（com.oogami.rise-crosscheck）が、そのコード部分をここへ写す
 ```
 - 写す処理＝`00_YFM-General/scripts/rise_rollup_crosscheck.py` の `sync_local_copy()`。

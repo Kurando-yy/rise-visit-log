@@ -30,7 +30,14 @@ var FIELD_MAP = {
   section:       '区分',
   menu_id:       'メニューid',
   menu_name:     'メニュー名',
-  device:        '端末'
+  device:        '端末',
+  // ★2026-09-14: 1人のお客様が複数メニューを選べるようにした分（司令ご依頼）。
+  //   ★これが無いと、端末が visit_id を送っても ★黙って捨てられる
+  //   （doPost は FIELD_MAP を回して値を集めるため。マリアの指摘 2026-09-14）。
+  //   ★列は明細タブの末尾（N/O/P）に追加済み。見出し名で振り分けるので位置は問わない。
+  visit_id:      'visit_id',
+  visit_seq:     'visit_seq',
+  visit_size:    'visit_size'
 };
 
 /**
@@ -344,16 +351,15 @@ function dailyRollup() {
 
     // ★2026-09-14: 「人」は ★行ではなく ★来店で数える（司令ご依頼の複数メニュー対応）。
     //   1人のお客様がカットとカラーを選ぶと ★明細は2行になる。
-    //   行のまま数えると ★その人が2人として計上される（＝改修前にできなかった理由）。
+    //   行のまま数えると ★その人が2人として計上される。
     //   ★同じ来店の行には、画面が ★同じ visit_id を入れて送ってくる。
     //
     //   ★後方互換（★これが無いと過去の集計が全部ずれる）:
-    //     visit_id が空の行＝★この改修より前の記録。★1行1人だったので、
+    //     visit_id が空の行＝★この改修より前の記録。★1行1人だったので
     //     ★record_id を visit_id の代わりに使う（＝行ごとに別人のまま）。
-    //   ★日付では切らない。端末のキャッシュが残ると、改修後でも古い形の行が数件届くため。
+    //   ★日付では切らない。端末のキャッシュが残ると、改修後でも古い形の行が届くため。
     var visit = String(r['visit_id'] || '').trim() || String(r['record_id'] || '') || ('row-' + i);
-    var isNewVisit = !g.seen[visit];
-    if (isNewVisit) {
+    if (!g.seen[visit]) {
       g.seen[visit] = true;
       g.n++;
       if (r['来店回数'] === '初めて') g.first++; else if (r['来店回数'] === '2回目〜') g.rep++;
@@ -362,6 +368,7 @@ function dailyRollup() {
 
     // ★以下は「メニューの数」「売上」なので ★行のまま数える（★変えない）。
     //   2行になっても、カット1・カラー1・売上は合算で ★正しい。
+    //   ★客単価は 売上 ÷ g.n なので、分母が来店数になれば自動的に直る。
     g.yen += Number(r['金額'] || 0);
     if (r['区分'] === 'カット') g.cut++;
     else if (r['区分'] === 'カラー') g.color++;
@@ -659,8 +666,8 @@ function analyticsRollup() {
     var yen = Number(r['金額'] || 0);
     var id = String(r['メニューid'] || '(不明)');
     var nm = String(r['メニュー名'] || '');
-    // ★2026-09-14: 時間帯別の「客数」も ★来店で数える（dailyRollup と同じ規則）。
-    //   ★後方互換も同じ: visit_id が空なら record_id を代わりに使う。
+    // ★2026-09-14: 来店の見分け。dailyRollup と ★同じ規則にする
+    //   （片方だけ直すと、日次と時間帯別で客数が食い違う）。
     var visitA = String(r['visit_id'] || '').trim() || String(r['record_id'] || '') || ('row-' + i);
 
     for (var p = 0; p < periods.length; p++) {
@@ -670,8 +677,12 @@ function analyticsRollup() {
                         seen: {} };
       }
       var a = hourAgg[gk];
-      a.yen += yen;                       // ★売上は行のまま（合算で正しい）
-      if (!a.seen[visitA]) {              // ★客数と時間帯は ★来店1回につき1つ
+      // ★2026-09-14: 時間帯別の「客数」も ★来店で数える（dailyRollup と同じ規則）。
+      //   ★売上は行のまま（合算で正しい）。
+      //   ★時間帯のカウントも来店1回につき1つ。行のままだと、2メニュー選んだ人が
+      //   ★同じ時間帯に2人居たように見える。
+      a.yen += yen;
+      if (!a.seen[visitA]) {
         a.seen[visitA] = true;
         a.n++;
         if (!isNaN(hh) && hh >= HOUR_FROM && hh <= HOUR_TO) a.h[hh] = (a.h[hh] || 0) + 1;
@@ -803,3 +814,4 @@ function todayList_() {
     note: 'この一覧はタブレットに入力された分です。レジの控えとは別物です。'
   })).setMimeType(ContentService.MimeType.JSON);
 }
+

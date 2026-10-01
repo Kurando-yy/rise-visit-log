@@ -88,10 +88,9 @@
         sections: {
           CUT: [
             { id: "men-cut-cut", name: "カット", price: 1400, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-cutshampoo", name: "カットとシャンプー", officialName: "カットシャンプー", price: 2100, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-cutshaving", name: "カットと顔剃り", officialName: "カットシェービング", price: 2100, hasKari: true, kariPrice: 1700, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-chouhatsu", name: "カットとシャンプーと顔剃り", officialName: "調髪", price: 2500, hasKari: true, kariPrice: 1950, hasLong: false, longAddPrice: null, isMinimum: false },
-            { id: "men-cut-kids", name: "子供カットとシャンプー（0〜15）", officialName: "子供調髪（0〜15）", price: 1850, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false }
+            { id: "men-cut-cutshampoo", name: "カットとシャンプー", officialName: "カットシャンプー", price: 2100, hasKari: true, kariPrice: 1400, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-cutshaving", name: "カットと顔剃り", officialName: "カットシェービング", price: 2100, hasKari: true, kariPrice: 1400, hasLong: false, longAddPrice: null, isMinimum: false },
+            { id: "men-cut-chouhatsu", name: "カットとシャンプーと顔剃り", officialName: "調髪", price: 2500, hasKari: true, kariPrice: 1400, hasLong: false, longAddPrice: null, isMinimum: false }
           ],
           COLOR: [
             { id: "men-color-shiragabokashi", name: "白髪ぼかし", price: 2400, hasKari: false, kariPrice: null, hasLong: false, longAddPrice: null, isMinimum: false },

@@ -1668,6 +1668,74 @@ html, body {
   SUBMIT.retryPending();
 
   goScreen1();
+
+  /* ============================================================
+     ★★自動で新しい版に入れ替わる（2026-10-02 司令指示）
+
+     ★由来: ★10/2 の料金改定の初日、★端末が前の画面を開いたままで
+       ★1,300円を送り続け、★8:30〜11:40 の3時間で ★3件が弾かれ
+       ★本番に1件も入らなかった。★サーバ側（公開ページ・料金表）は
+       ★両方とも正しかったのに、★端末だけが古かった。
+     ★司令「そもそもこのブラウザ更新しないと新しくならないのどうにかして！」
+
+     ★仕組み: ★5分おきに ★このページ自身へ HEAD を投げ、
+       ★ETag（無ければ Last-Modified）が ★変わっていたら新しい版。
+       → ★版の番号を人が上げる必要がない（★上げ忘れが起きない）。
+     ★安全側の作り:
+       ・★入力中は ★絶対に読み込み直さない（★お客様1人分の入力が消える）
+         ＝ ★何も選んでいない時だけ（state も cart も空）
+       ・★通信が切れていたら ★何もしない（★画面は止めない）
+       ・★未送信キューは localStorage に残るので ★読み込み直しても消えない
+       ・★record_id で重複は弾かれるので ★二重登録にならない
+     ============================================================ */
+  (function autoUpdate() {
+    var CHECK_MS = 5 * 60 * 1000;   // ★版を見にいく間隔
+    var IDLE_MS = 15 * 1000;        // ★手が空いたかを見にいく間隔
+    var known = null;               // ★いま動いている版の目印
+    var pending = false;            // ★新しい版が出ている
+
+    function tagOf(res) {
+      return res.headers.get("etag") || res.headers.get("last-modified") || null;
+    }
+    function check() {
+      // ★?v= を付けるのは ★途中のキャッシュに邪魔されないため
+      fetch(location.pathname + "?v=" + Date.now(), { method: "HEAD", cache: "no-store" })
+        .then(function (res) {
+          if (!res.ok) return;
+          var t = tagOf(res);
+          if (!t) return;                 // ★目印が取れない時は ★何もしない
+          if (known === null) { known = t; return; }   // ★初回は覚えるだけ
+          if (t !== known) { pending = true; tryReload(); }
+        })
+        .catch(function () { /* ★通信が切れていても ★画面は止めない */ });
+    }
+    function idle() {
+      // ★1つでも選んでいたら ★入力中とみなす
+      return !state.visitType && !state.gender && !state.section
+        && !state.item && (typeof cart === "undefined" || cart.length === 0);
+    }
+    // ★★歯止め（★入れないと ★読み込み直しが止まらなくなる）
+    //   ★配信は max-age=600。★HEAD だけ新しくなり ★本体がまだ古い、という
+    //   ★10分ほどの隙間が在りうる。★その間ずっと「新しい版だ」と判定して
+    //   ★読み込み直しを繰り返す輪になる。→ ★10分に1回までに制限する。
+    var COOLDOWN_MS = 10 * 60 * 1000;
+    var LAST_KEY = "rise_visit_log_last_autoreload_v1";
+    function recentlyReloaded() {
+      try {
+        var v = parseInt(localStorage.getItem(LAST_KEY) || "0", 10);
+        return v && (Date.now() - v) < COOLDOWN_MS;
+      } catch (e) { return false; }      // ★読めなければ ★止めない側へ倒す
+    }
+    function tryReload() {
+      if (!pending || !idle()) return;
+      if (recentlyReloaded()) return;
+      try { localStorage.setItem(LAST_KEY, String(Date.now())); } catch (e) { }
+      location.reload();
+    }
+    setInterval(check, CHECK_MS);
+    setInterval(tryReload, IDLE_MS);
+    check();
+  })();
 })();
 
 </script>
